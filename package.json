@@ -37,8 +37,8 @@
   },
   "scripts": {
     "build": "tsc && node esbuild.js",
+    "prepublishOnly": "yarn build && npm version patch",
     "commit": "npm publish --access=public",
-    "prepublishOnly": "yarn build",
     "postpublish": "rm -rf build"
   },
   "jest": {
