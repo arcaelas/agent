@@ -1,50 +1,59 @@
 {
-  "author": {
-    "email": "comunity@arcaelas.com",
-    "name": "Arcaelas Insiders",
-    "url": "https://github.com/arcaelas"
+  "license": "ISC",
+  "version": "2.0.5",
+  "name": "@arcaelas/agent",
+  "homepage": "https://github.com/arcaelas/agent",
+  "description": "A small box of tools, which are implemented in different factions of the library.",
+  "keywords": [
+    "agent",
+    "tools",
+    "arcaelas",
+    "arcaelas insiders",
+    "arcaelas-insiders",
+    "javascript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arcaelas/agent.git"
   },
   "bugs": {
     "email": "community@arcaelas.com",
     "url": "https://github.com/arcaelas/agent/issues"
   },
-  "dependencies": {
-    "@arcaelas/utils": "^2.0.5",
-    "openai": "^5.10.1"
-  },
-  "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.0.6",
-    "jest": "^30.0.3",
-    "reflect-metadata": "^0.2.2",
-    "ts-jest": "^29.4.0",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
-  },
+  "main": "build/index.js",
   "files": [
     "build/",
     "*.md",
     "*.json"
   ],
-  "homepage": "https://github.com/arcaelas/agent",
-  "license": "ISC",
-  "main": "build/index.js",
-  "name": "@arcaelas/agent",
+  "author": {
+    "name": "Arcaelas Insiders",
+    "email": "comunity@arcaelas.com",
+    "url": "https://github.com/arcaelas"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/arcaelas/agent.git"
-  },
   "scripts": {
     "build": "tsc && node esbuild.js",
     "commit": "npm publish --access=public",
-    "postpublish": "rm -rf build",
-    "prepublishOnly": "npm version patch"
+    "prepublishOnly": "yarn build",
+    "postpublish": "rm -rf build"
   },
-  "version": "1.0.1"
+  "jest": {
+    "testPathIgnorePatterns": [
+      "test/*.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.1",
+    "esbuild": "^0.17.18",
+    "jest": "^29.5.0",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@arcaelas/utils": "^2.0.5",
+    "openai": "^5.10.1"
+  }
 }
