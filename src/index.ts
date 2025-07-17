@@ -25,24 +25,24 @@ export interface ProviderOptions {
 
 /**
  * @description
- * Opciones del bot.
+ * Opciones del agente.
  */
-export interface BotOptions {
+export interface AgentOptions {
   /**
    * @description
-   * Nombre del bot, utilizado para identificar al bot durante toda la conversación.
+   * Nombre del agente, utilizado para identificar al agente durante toda la conversación.
    */
   name: string;
 
   /**
    * @description
-   * Descripción del bot, será utilizado como system message durante toda la conversación para identificar la personalidad del bot.
+   * Descripción del agente, será utilizado como system message durante toda la conversación para identificar la personalidad del agente.
    */
   description: string;
 
   /**
    * @description
-   * Lista de limitaciones que se aplicarán a la conversación, antes de que el bot responda.
+   * Lista de limitaciones que se aplicarán a la conversación, antes de que el agente responda.
    */
   limits?: string[];
 
@@ -75,20 +75,20 @@ export interface ToolOptions<T> {
   func: Noop<[params: T extends object ? T : { input: string }], string>;
 }
 
-export default class Bot<T extends BotOptions> {
+export default class Agent<T extends AgentOptions> {
   /**
    * @description
-   * Nombre del bot
+   * Nombre del agente
    */
   readonly name: string;
   /**
    * @description
-   * Descripción del bot
+   * Descripción del agente
    */
   readonly description: string;
   /**
    * @description
-   * Lista de limitaciones que se aplicarán a la conversación, antes de que el bot responda.
+   * Lista de limitaciones que se aplicarán a la conversación, antes de que el agente responda.
    */
   readonly limits: string[];
   /**
@@ -111,7 +111,7 @@ export default class Bot<T extends BotOptions> {
 
   /**
    * @description
-   * Agrega una herramienta al bot.
+   * Agrega una herramienta al agente.
    * @param name - Nombre de la herramienta.
    * @param options - Opciones de la herramienta.
    * @returns Retorna una función para eliminar la herramienta.
@@ -119,7 +119,7 @@ export default class Bot<T extends BotOptions> {
   tool<T>(name: string, options: ToolOptions<T>): () => void;
   /**
    * @description
-   * Agrega una herramienta al bot.
+   * Agrega una herramienta al agente.
    * @param desc - Descripción de la herramienta.
    * @param func - Función que se ejecutará cuando se use la herramienta.
    * @returns Retorna una función para eliminar la herramienta.
