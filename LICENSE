@@ -1,21 +1,45 @@
-MIT License
+# LICENSE AGREEMENT FOR @ARCAELAS/AGENT
 
-Copyright (c) 2025 arcaela
+Copyright (c) 2025 Arcaelas Insiders
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## OPEN SOURCE LICENSE WITH COMMERCIAL USE RESTRICTIONS
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+### 1. DEFINITIONS
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+- “The Software” refers to the @arcaelas/agent library, including all its source code, documentation, examples, and related files.
+- “Commercial Use” refers to any use of the Software for profit or in commercial environments where direct or indirect economic benefit is obtained.
+- “Arcaelas Insiders” refers to the entity holding the copyright of the Software.
+
+### 2. GRANT OF RIGHTS FOR NON-COMMERCIAL USE
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of the Software, to use it for personal, educational, or non-profit purposes, including the rights to:
+
+- Use the Software without restrictions.
+- Modify the source code to suit specific needs.
+- Distribute copies of the Software in its original or modified form.
+- Incorporate parts of the Software into other non-commercial projects.
+
+provided that all copies or substantial portions of the Software include the copyright notice and a copy of this license.
+
+### 3. COMMERCIAL USE RESTRICTIONS
+
+COMMERCIAL USE of the Software is EXPRESSLY PROHIBITED without first obtaining a commercial license authorized by Arcaelas Insiders. Any unauthorized commercial use:
+
+- Will constitute a violation of this license.
+- Will trigger the immediate obligation to pay royalties to Arcaelas Insiders.
+- May result in legal action for infringement of copyright.
+
+### 4. OBTAINING A COMMERCIAL LICENSE
+
+To obtain a commercial license, please contact Arcaelas Insiders via:
+
+- Email: [community@arcaelas.com](mailto:community@arcaelas.com)
+- Website: [https://github.com/arcaelas](https://github.com/arcaelas)
+
+### 5. DISCLAIMER OF WARRANTY AND LIMITATION OF LIABILITY
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+### 6. TERMINATION
+
+This license shall automatically terminate if any of its terms are violated. Upon termination, all use of the Software must immediately cease.
