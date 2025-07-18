@@ -184,7 +184,29 @@ export default class Agent<T extends AgentOptions> {
 
         let response: OpenAI.Chat.Completions.ChatCompletion;
         try {
-          response = await ask({ messages, tools, tool_choice: "auto" });
+          response = await ask({
+            messages: [
+              {
+                role: "system",
+                content: `Your name is "${this.name}"\n${
+                  this.description || ""
+                }`,
+              },
+              ...messages,
+              ...(this.limits?.length
+                ? [
+                    {
+                      role: "system",
+                      content: `Rules for reply to user:\n${this.limits.join(
+                        "\n"
+                      )}`,
+                    } as any,
+                  ]
+                : []),
+            ],
+            tools,
+            tool_choice: "auto",
+          });
         } catch {
           /* proveedor falló → lo descartamos y probamos otro */
           providers.splice(idx, 1);
