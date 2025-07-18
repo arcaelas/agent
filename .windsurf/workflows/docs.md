@@ -2,95 +2,125 @@
 description: Analiza la librería de Agente con funciones, personalidad y nombre (OpenAI + Arcaelas Insiders) y genera documentación completa.
 ---
 
-Realiza un análisis profundo del proyecto actual, que es una librería en TypeScript con documentación exhaustiva mediante JSDoc y tipado estricto. La librería tiene como objetivo permitir la creación de un "Agente" utilizando las APIs de OpenAI, otorgándole funcionalidades (tools), personalidad y un nombre propio.
+# Workflow: generate-universal-docs
 
-**Instrucciones**:
-
-Utiliza tu capacidad de análisis avanzado para revisar el proyecto completo, entendiendo claramente la lógica interna, funcionalidades, dependencias (exclusivamente Arcaelas Insiders y OpenAI), estructuras tipadas y documentación existente.
-
-A partir de este análisis, genera los siguientes archivos estrictamente siguiendo estas pautas:
+Descripción: Analiza el proyecto actual, identifica su propósito, dependencias y convenciones, y genera documentación fundamental y archivos de gobierno del proyecto de forma totalmente automatizada.
 
 ---
 
-## 📖 Archivo: `README.md`
+## 🔥 OBJETIVO GENERAL
 
-Este archivo debe contener la documentación completa y profesional del proyecto, organizada con estos apartados:
+Crear (o sobrescribir, si ya existen) los siguientes artefactos en la raíz del repositorio:
 
-- **Título y descripción breve:** Indica claramente qué hace la librería en términos simples.
-- **Introducción extendida:** Explica detalladamente los conceptos clave como "Agente", "tools" (funcionalidades), personalidad del agente y su integración con OpenAI.
-- **Instalación rápida:** Comandos exactos para instalar la librería usando `yarn` o `npx`.
-- **Uso básico:** Ejemplo mínimo, simple y funcional en TypeScript con comentarios breves que expliquen claramente cada paso.
-- **Uso avanzado:** Ejemplo mostrando cómo personalizar un Agente con múltiples herramientas, personalidad y nombre propios, ilustrando casos reales y prácticos.
-- **API detallada:** Resume de manera estructurada las funciones públicas más importantes con breve descripción.
-- **Recomendaciones y buenas prácticas:** Incluye sugerencias sobre cómo aprovechar mejor la librería.
-- **Licencia:** Breve nota indicando claramente que el proyecto es open source pero con restricciones comerciales.
+- `README.md`
+- `LICENSE`
+- `CHANGELOG.md`
+- `SECURITY.md`
 
----
-
-## 📜 Archivo: `LICENSE`
-
-Genera una licencia personalizada que cumpla estrictamente con estas condiciones:
-
-- Especifica claramente que el código es **Open Source**.
-- El código puede utilizarse libremente para fines personales, educativos o sin ánimo de lucro.
-- **Prohíbe explícitamente el uso comercial o lucrativo** sin obtener previamente una licencia comercial autorizada por **"Arcaelas Insiders"**, detallando que cualquier uso comercial generará la obligación del pago de regalías.
-- Indica contacto con Arcaelas Insiders para obtener licencias comerciales.
+El Workflow debe funcionar con **cualquier stack de tecnologías** (TypeScript, Python, Go, Rust, etc.) y con **cualquier modelo de negocio** (open source, privativo, freemium, etc.).  
+Los contenidos se adaptarán automáticamente al contexto real detectado o —si fuera necesario— consultando interactivamente al usuario.
 
 ---
 
-## 📒 Archivo: `CHANGELOG`
+## 📋 PARÁMETROS INTERACTIVOS (si no se detectan automáticamente)
 
-Genera un historial detallado de cambios recientes, basándote estrictamente en los últimos **10 cambios** realizados en el proyecto, pero **no uses el texto literal de los commits**. En lugar de eso:
-
-- Revisa profundamente cada commit y describe de forma clara y objetiva las modificaciones realizadas en la lógica, estructura, tipado, documentación, rendimiento o manejo de errores.
-- Usa un formato organizado: versión (semver), fecha, y lista ordenada de cambios significativos con breve explicación del impacto del cambio.
-
-Ejemplo del formato:
-
-```
-## [1.3.1] - 2025-07-17
-- Mejorado rendimiento en el manejo de respuestas del API de OpenAI.
-- Corregido error crítico en el método `.answer()` que generaba loops infinitos.
-- Añadido soporte para herramientas (tools) condicionales según el contexto.
-
-## [1.3.0] - 2025-07-15
-- Añadida funcionalidad avanzada para definir personalidad detallada del agente.
-- Refactorización completa del tipado en las interfaces principales.
-```
+| Parámetro                | Pregunta al usuario                                                             | Uso posterior                      |
+| ------------------------ | ------------------------------------------------------------------------------- | ---------------------------------- |
+| `PROJECT_NAME`           | “¿Cómo se llama el proyecto?”                                                   | Título, encabezados y badges       |
+| `SHORT_DESCRIPTION`      | “Describe brevemente en una frase qué hace el proyecto.”                        | Introducción del README            |
+| `PRIMARY_LANGUAGE`       | “¿En qué lenguaje principal está escrito?”                                      | Ejemplos de instalación y snippets |
+| `ORG_NAME`               | “¿Cuál es la organización o autor principal?”                                   | Licencia y Créditos                |
+| `LICENSE_POLICY`         | “¿Qué licencia prefieres? (Ej: MIT, Apache‑2.0, GPL‑3.0, Custom‑NonCommercial)” | Generar `LICENSE`                  |
+| `COMMERCIAL_USAGE_RULES` | “¿Hay restricciones o regalías para uso comercial? Si es así, descríbelas.”     | Sección de licencia y SECURITY     |
+| `CONTACT_SECURITY`       | “Email o URL de contacto para reportar vulnerabilidades.”                       | `SECURITY.md`                      |
+| `COMMITS_TO_ANALYZE`     | “¿Cuántos cambios recientes deseas reflejar en el CHANGELOG? (default 10)”      | `CHANGELOG.md`                     |
 
 ---
 
-## 🔒 Archivo: `SECURITY.md`
+## 🗺️ PLAN DE ALTO NIVEL
 
-Genera un documento de seguridad detallado, serio y profesional que incluya:
+1. **Preparación & Análisis**
 
-- **Introducción:** Explicando que la herramienta depende completamente de APIs de terceros (OpenAI) y utilidades exclusivas de Arcaelas Insiders, siendo por naturaleza susceptible a vulnerabilidades externas.
-- **Potenciales vulnerabilidades:**
+   - Indexa todo el árbol del proyecto.
+   - Detecta lenguajes, frameworks, test suites y gestor de paquetes.
+   - Lee historial de Git para identificar últimos `COMMITS_TO_ANALYZE` cambios significativos.
 
-  - Riesgos inherentes al uso de APIs externas (OpenAI), incluyendo posibles fugas de información o respuestas maliciosas provenientes del modelo.
-  - Gestión y protección de credenciales y claves API utilizadas por el agente.
-  - Vulnerabilidades potenciales relacionadas con la manipulación maliciosa de las funcionalidades o herramientas integradas ("tools").
-  - Riesgos específicos relacionados con la ejecución automatizada de código o acciones basadas en respuestas no verificadas de modelos LLM.
+2. **Confirmación de Parámetros**
 
-- **Recomendaciones para mitigar riesgos:**
+   - Si faltan datos, lanza preguntas interactivas según la tabla anterior.
+   - Muestra al usuario un **resumen** con los valores detectados y permitir editar.
 
-  - Valida y sanitiza siempre todas las entradas y salidas del agente.
-  - Implementa auditorías y logs detallados sobre las interacciones del agente.
-  - Protege estrictamente tus credenciales de acceso a OpenAI y Arcaelas Insiders.
+3. **Generación de `README.md`**
 
-- **Política de reporte de vulnerabilidades:**
+   - Estructura mínima obligatoria:
+     1. Título y badges (lenguaje, versión, licencia).
+     2. Descripción breve (`SHORT_DESCRIPTION`).
+     3. Tabla de contenidos automática.
+     4. Instalación rápida (ej. `yarn add`, `pip install`, `cargo add`, etc.).
+     5. Uso básico (snippet mínimo y comentado).
+     6. Uso avanzado (ejemplo con configuración detallada, plugins o extensiones).
+     7. Documentación de API pública (enumerar funciones/clases clave).
+     8. Buenas prácticas y guías de contribución resumidas.
+     9. Licencia (enlazar a `LICENSE`).
 
-  - Indica claramente cómo y dónde reportar cualquier vulnerabilidad encontrada (contacto, email, plataforma de seguimiento, etc.).
-  - Tiempo estimado para respuesta inicial y corrección crítica.
+4. **Generación de `LICENSE`**
 
-Finaliza enfatizando la responsabilidad de los usuarios para implementar prácticas seguras y prudentes en sus implementaciones usando esta librería.
+   - Si `LICENSE_POLICY` ≈ “Custom‑NonCommercial”:
+     - Crear texto base similar a CC BY‑NC 4.0, **pero** con cláusula específica de regalías conforme a `ORG_NAME` y `COMMERCIAL_USAGE_RULES`.
+   - Si es una licencia OSI: incrustar plantilla oficial con el `ORG_NAME` y año actual.
+   - Añadir sección “Contact” con email/URL para licencias comerciales cuando aplique.
+
+5. **Generación de `CHANGELOG.md`**
+
+   - Formato **Keep a Changelog** + **SemVer**.
+   - Para cada commit analizado:
+     - Derivar la versión (inferir `major.minor.patch` o preguntar).
+     - Usar fecha `YYYY‑MM‑DD`.
+     - Describir cambios en: funciones nuevas, refactorizaciones, fixes, docs, CI, seguridad, etc.
+     - Evitar texto literal de commit; redactar descripción clara y concisa.
+   - Incluir sección **[Unreleased]** al inicio si hay trabajo pendiente.
+
+6. **Generación de `SECURITY.md`**
+
+   - Contenido mínimo:
+     - **Introducción**: objetivo del proyecto y dependencia de componentes externos detectados.
+     - **Áreas de Riesgo Comunes**: inyección, deserialización, uso de APIs de terceros, gestión de claves, etc.
+     - **Buenas Prácticas**: sanitización de entrada/salida, controles RBAC, cifrado de secretos, CI con análisis SCA.
+     - **Política de Divulgación Responsable**: paso a paso, plazos de respuesta (<72 h), canal de contacto `CONTACT_SECURITY`.
+     - **Versión Soportada**: qué versiones reciben parches de seguridad.
+
+7. **Revisión & Aprobación**
+
+   - Mostrar _diff_ previo al usuario de todos los archivos a crear/modificar.
+   - Permitir feedback o edición manual antes de confirmar.
+
+8. **Escritura en Modo Plan**
+
+   - Crear/actualizar los archivos aprobados.
+   - Ejecutar pruebas y linter si existen; abortar en caso de fallo grave.
+
+9. **Checkpoint**
+
+   - Guardar checkpoint nombrado `docs-universal-<fecha>`.
+
+10. **Resumen Final**
+    - Imprimir lista de archivos creados con rutas relativas.
+    - Sugerir próximos pasos (ej. publicar docs, revisar licencia, crear release tag).
 
 ---
 
-## ⚠️ Reglas de ejecución del prompt:
+## 🚦 DETALLES Y REGLAS ESPECÍFICAS PARA CASCADE
 
-- Revisa cuidadosamente toda la estructura del proyecto antes de iniciar cualquier escritura.
-- Cada archivo generado debe ser profesional, claro, objetivo y coherente con el contexto real del proyecto.
-- Respeta siempre la propiedad intelectual, comercial y técnica descrita.
-- No inventes funcionalidades inexistentes ni asumas comportamientos que no estén documentados o tipados en el proyecto.
-- Usa un estilo markdown limpio y fácil de leer, ideal para documentación técnica profesional.
+- **Lenguaje**: mantén el README y SECURITY en el mismo idioma predominante del código (auto‑detect).
+- **Estilo Markdown**: usa encabezados `##` máximo para secciones internas; evita `#` dentro del README si el título ya lo emplea.
+- **Longitud**: todos los archivos deben ser descriptivos pero razonables (< 12 000 caracteres cada uno para cumplir límite de Workflow).
+- **Respeto a Código Existente**: no modificar archivos de código fuente a menos que el usuario lo solicite.
+- **Fuentes de Verdad**: confía primero en archivos de configuración (package.json, pyproject.toml, Cargo.toml, etc.) y en comentarios JSDoc/docstrings.
+- **Herramientas Auxiliares**: si detectas comandos de prueba (`npm test`, `pytest`, `go test`), considéralos para la sección de ejemplo avanzado.
+- **Licencia de Dependencias**: si alguna dependencia es GPL, señala advertencia en SECURITY.
+
+---
+
+## 🏁 INVOCACIÓN
+
+Guarda este archivo como:
