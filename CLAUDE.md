@@ -2,7 +2,7 @@
 
 ## 📋 Resumen General
 
-Este documento define los patrones de programación, estilo de código y preferencias técnicas observadas en el proyecto `@arcaelas/agent`. Estos estándares garantizan **consistencia**, **legibilidad** y **mantenibilidad** del código base.
+Este documento define los estándares de programación, patrones de código y convenciones técnicas universales de Arcaelas Insiders. Estos estándares garantizan **consistencia**, **legibilidad** y **mantenibilidad** del código base en todos los proyectos.
 
 ---
 
@@ -61,22 +61,39 @@ const idx=Math.floor(Math.random()*providers.length);
 
 ### Variables y Funciones
 ```typescript
-// ✅ camelCase descriptivo
-const baseURL = "https://api.openai.com";
-const toolOptions = { name: "search", description: "..." };
+// ✅ Variables en inglés con camelCase
+const base_url = "https://api.openai.com";
+const tool_options = { name: "search", description: "..." };
+
+// ✅ Métodos y funciones con snake_case
+function parse_arguments(text: string) { }
+const handle_request = async () => { };
 
 // ✅ Abreviaciones claras cuando son obvias
 const idx = 0;
-const args = JSON.parse(argText);
+const args = JSON.parse(arg_text);
 const desc = "Tool description";
 ```
 
-### Clases e Interfaces
+### Clases, Interfaces y Constantes
 ```typescript
-// ✅ PascalCase con sufijos descriptivos
+// ✅ Clases con PascalCase
+class Agent<T extends AgentOptions> { }
+class HttpClient { }
+
+// ✅ Interfaces con PascalCase
 interface ProviderOptions { }
 interface AgentOptions { }
-class Agent<T extends AgentOptions> { }
+
+// ✅ Constantes y enums con UPPER_CASE
+const MAX_RETRIES = 3;
+const API_BASE_URL = "https://api.example.com";
+
+enum Status {
+  PENDING = "PENDING",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED"
+}
 ```
 
 ---
@@ -128,48 +145,97 @@ if (argText.trim()) {
 }
 ```
 
-### Switch Statements
-**No utilizar `switch`** - preferir:
-- **if-else** para lógica condicional
-- **Object maps** para mapeo de valores
-- **Ternarios** para casos simples
+### Early Returns
+**Usar early returns** para reducir anidamiento:
+
+```typescript
+// ✅ Early return
+function process_data(data: unknown) {
+  if (!data) return null;
+  if (typeof data !== "object") return null;
+
+  // lógica principal
+  return transform(data);
+}
+
+// ❌ Anidamiento innecesario
+function process_data(data: unknown) {
+  if (data) {
+    if (typeof data === "object") {
+      // lógica principal
+      return transform(data);
+    }
+  }
+  return null;
+}
+```
+
+### Switch vs If-Else
+**Usar switch solo para casos lineales simples:**
+
+```typescript
+// ✅ Switch para casos lineales
+switch (status) {
+  case "pending": return "⏳";
+  case "completed": return "✅";
+  case "failed": return "❌";
+  default: return "❓";
+}
+
+// ✅ If-else para lógica compleja
+if (user.is_admin && has_permission) {
+  return admin_dashboard();
+} else if (user.is_verified) {
+  return user_dashboard();
+} else {
+  return login_page();
+}
+```
 
 ---
 
 ## ⚡ Declaración de Funciones
 
-### Prioridad: Lambdas > Funciones Independientes
+### Prioridad: Lambdas > Funciones Declaradas
 
-**✅ Preferido: Arrow functions inline**
+**✅ Preferir funciones anónimas cortas**
 ```typescript
 // Callbacks y transformaciones
-const tools = [...this.tools.values()].map(
-  ({ func, ...schema }: any) => schema
-);
+const tools = [...this.tools.values()].map(({ func, ...schema }) => schema);
 
-const providers = this.providers.map(({ baseURL, apiKey, model }) => {
-  const client = new OpenAI({ baseURL, apiKey });
-  return (p: Omit<OpenAI.Chat.ChatCompletionCreateParams, 'model'>) =>
-    client.chat.completions.create({ ...p, model });
+const providers = this.providers.map(({ base_url, api_key, model }) => {
+  const client = new OpenAI({ base_url, api_key });
+  return (params) => client.chat.completions.create({ ...params, model });
 });
 
-// Funciones de retorno
-return () => {
-  this.tools.delete(k);
-};
+// Funciones inline para operaciones simples
+const filtered_items = items.filter(item => item.is_active && item.price > 0);
+const transformed_data = data.map(item => ({ ...item, id: generate_id() }));
 ```
 
-**⚠️ Usar funciones independientes solo cuando:**
+**✅ Lógica encapsulada vs helpers externos**
+```typescript
+// ✅ Lógica encapsulada (preferido)
+function process_user_data(user: User) {
+  const normalize_email = (email: string) => email.toLowerCase().trim();
+  const is_valid_age = (age: number) => age >= 18 && age <= 120;
+
+  return {
+    email: normalize_email(user.email),
+    is_adult: is_valid_age(user.age)
+  };
+}
+
+// ❌ Helpers externos (evitar a menos que sea inevitable)
+function normalize_email(email: string) { return email.toLowerCase().trim(); }
+function is_valid_age(age: number) { return age >= 18 && age <= 120; }
+```
+
+**✅ Usar funciones declaradas solo cuando:**
 - La lógica es compleja y reutilizable
 - Se necesita hoisting
 - La función es parte de la API pública
-
-```typescript
-// ✅ Función independiente para API pública
-async answer(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
-  // ... lógica compleja
-}
-```
+- Es inevitablemente necesario un helper externo
 
 ---
 
@@ -242,15 +308,37 @@ const tools = [...this.tools.values()];
 return { ...p, model };
 ```
 
-**✅ Optional chaining y nullish coalescing**
+**✅ Optional chaining y assignment operators**
 ```typescript
-// Optional chaining
-const argText = call.function.arguments ?? "";
+// Nullish coalescing
+const arg_text = call.function.arguments ?? "";
+const config = user_config ?? default_config;
 
-// Nullish coalescing con default
-for (const i in v.parameters ?? { input: "Entrada para la herramienta" }) {
-  // ...
+// Assignment operators
+config.timeout ??= 5000;
+config.retries ||= 3;
+
+// Preferir x = y ?? z sobre alternativas
+const result = response.data ?? fallback_data;
+const value = input?.trim() ?? "";
+```
+
+**✅ Validaciones complejas simplificadas**
+```typescript
+// ✅ Validación en cadena
+const is_valid_user = user?.id && user?.email && user.is_active;
+
+// ✅ Múltiples validaciones con early return
+function validate_request(req: Request) {
+  if (!req.headers.authorization) return false;
+  if (!req.body?.data) return false;
+  if (req.method !== "POST") return false;
+  return true;
 }
+
+// ✅ Validación con destructuring
+const { name, email, age } = user_data ?? {};
+if (!name || !email || age < 18) return;
 ```
 
 ---
@@ -285,19 +373,77 @@ private readonly tools = new Map<string, OpenAI.ChatCompletionTool>();
 ## 📖 Documentación
 
 ### JSDoc en Español para APIs Públicas
+
+**✅ Documentación profesional completa**
 ```typescript
 /**
  * @description
- * Opciones del agente.
+ * Opciones de configuración para el agente de IA.
+ * @example
+ * ```typescript
+ * const options: AgentOptions = {
+ *   name: "Assistant",
+ *   description: "Agente especializado en soporte técnico",
+ *   providers: [{ base_url: "...", model: "gpt-4", api_key: "..." }]
+ * };
+ * ```
  */
 export interface AgentOptions {
   /**
    * @description
-   * Nombre del agente, utilizado para identificar al agente durante toda la conversación.
+   * Nombre único del agente utilizado para identificación durante conversaciones.
    */
   name: string;
+
+  /**
+   * @description
+   * Descripción de la personalidad y comportamiento del agente.
+   */
+  description: string;
+
+  /**
+   * @description
+   * Lista de proveedores de IA disponibles para el agente.
+   */
+  providers: ProviderOptions[];
+}
+
+/**
+ * @namespace Utils
+ * @description
+ * Utilidades generales para el procesamiento de datos.
+ */
+export namespace Utils {
+  /**
+   * @description
+   * Procesa y valida datos de entrada del usuario.
+   * @param data - Datos sin procesar del usuario
+   * @param options - Opciones de procesamiento
+   * @returns Datos procesados y validados
+   * @example
+   * ```typescript
+   * const result = process_user_data(rawData, { strict: true });
+   * ```
+   */
+  export function process_user_data(
+    data: unknown,
+    options?: ProcessOptions
+  ): ProcessedData | null {
+    // implementación
+  }
 }
 ```
+
+**✅ Tags JSDoc recomendados:**
+- `@description` - Descripción detallada
+- `@param` - Parámetros de función
+- `@returns` - Valor de retorno
+- `@example` - Ejemplos de uso
+- `@typedef` - Definiciones de tipos
+- `@namespace` - Organización de utilidades
+- `@throws` - Excepciones que puede lanzar
+- `@since` - Versión de introducción
+- `@deprecated` - Elementos obsoletos
 
 ### Comentarios de Sección
 ```typescript
@@ -314,36 +460,132 @@ const providers = this.providers.map(({ baseURL, apiKey, model }) => {
 
 ---
 
+## 📋 Documentación de Proyectos
+
+### README.md Obligatorio
+**Cada librería debe incluir un README.md descriptivo:**
+
+```markdown
+# Nombre del Proyecto
+
+Descripción concisa de qué hace la librería y por qué es útil.
+
+## 🚀 Instalación
+
+\`\`\`bash
+npm install @arcaelas/nombre-proyecto
+yarn add @arcaelas/nombre-proyecto
+\`\`\`
+
+## 📖 Uso Básico
+
+\`\`\`typescript
+import { main_function } from "@arcaelas/nombre-proyecto";
+
+const result = main_function({ config: "value" });
+\`\`\`
+
+## 🔧 API
+
+### Funciones Principales
+
+#### \`main_function(options: Options): Result\`
+Descripción de la función principal.
+
+**Parámetros:**
+- \`options.config\` - Configuración específica
+- \`options.mode\` - Modo de operación
+
+**Retorna:** Objeto con el resultado procesado
+
+## 📝 Ejemplos
+
+### Ejemplo Básico
+\`\`\`typescript
+// Código de ejemplo funcional
+\`\`\`
+
+### Ejemplo Avanzado
+\`\`\`typescript
+// Ejemplo más complejo con todas las opciones
+\`\`\`
+
+## 🧪 Testing
+
+\`\`\`bash
+npm test
+\`\`\`
+
+## 📄 Licencia
+
+[Tipo de licencia] - Ver archivo LICENSE para más detalles.
+```
+
+### Estructura Estándar de README
+1. **Título y descripción** clara y concisa
+2. **Instalación** con comandos específicos
+3. **Uso básico** con ejemplo mínimo funcional
+4. **API completa** documentada
+5. **Ejemplos** progresivos (básico → avanzado)
+6. **Testing** instrucciones de prueba
+7. **Licencia** información legal
+
+---
+
 ## ⚙️ Herramientas y Build
 
-### Configuración de Desarrollo
-- **ESBuild** para build rápido sin bundle
-- **TypeScript** con decorators y paths absolutos
-- **Jest** con configuración TypeScript nativa
-- **Prettier** con ignore selectivo para casos especiales
+### Herramientas Esenciales
+- **Build**: ESBuild para compilación rápida
+- **TypeScript**: Configuración estricta con decorators
+- **Testing**: Jest para pruebas unitarias
+- **Linting**: ESLint + Prettier para formato consistente
 
-### Scripts de Automatización
+### Scripts Básicos Requeridos
 ```json
 {
   "build": "tsc && node esbuild.js",
-  "prepublishOnly": "yarn build && npm version patch",
-  "postpublish": "rm -rf build"
+  "test": "jest",
+  "lint": "eslint src/ --ext .ts",
+  "format": "prettier --write src/"
 }
 ```
 
 ---
 
-## 🎯 Resumen de Principios Clave
+## 🎯 Estándares de Programación - Resumen
 
-1. **JavaScript/TypeScript nativo** > librerías externas
-2. **Métodos nativos** > helpers personalizados
-3. **Lambdas** > funciones independientes
-4. **Hardcodear** > variables de un solo uso
-5. **Brevedad expresiva** > código verboso
-6. **if-else** para lógica, **ternarios** para asignaciones
-7. **No usar switch** - preferir if-else u object maps
-8. **Código autodocumentado** a través de nombres descriptivos
-9. **2 espacios** de indentación siempre
-10. **Robustez** a través de simplicidad y estándares
+### Control de Flujo
+1. **Early returns** > anidamiento profundo
+2. **Ternarios** para asignaciones simples
+3. **if-else** para lógica compleja
+4. **Switch** solo para casos lineales simples
+5. **Spread operator** para transformaciones
+6. **Operadores de asignación** ??= y ||= cuando aplique
+7. **Nullish coalescing** x = y ?? z como preferencia
 
-Este estilo garantiza código **limpio**, **mantenible** y **performante** siguiendo las mejores prácticas de JavaScript moderno y TypeScript.
+### Funciones y Métodos
+8. **Funciones nativas** > métodos personalizados
+9. **Lambdas anónimas** > funciones declaradas de un solo uso
+10. **Lógica encapsulada** > helpers externos
+11. **Hardcode** > variables de un solo uso
+12. **Validaciones simplificadas** en pocos pasos
+
+### Nomenclatura
+13. **Variables en inglés** con snake_case para funciones
+14. **PascalCase** para clases e interfaces
+15. **UPPER_CASE** para constantes y enums
+16. **Nombres descriptivos** y autodocumentados
+
+### Documentación
+17. **JSDoc en español** para APIs públicas
+18. **Tags profesionales** sin saturar
+19. **README.md descriptivo** obligatorio por proyecto
+20. **Ejemplos funcionales** en documentación
+
+### Calidad
+21. **2 espacios** de indentación siempre
+22. **Código autodocumentado** > comentarios explicativos
+23. **Simplicidad** > complejidad innecesaria
+24. **Natividad del lenguaje** > abstracciones personalizadas
+
+Estos estándares garantizan código **limpio**, **consistente** y **mantenible** siguiendo las mejores prácticas de programación moderna.
