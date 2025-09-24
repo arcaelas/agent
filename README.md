@@ -73,17 +73,18 @@ console.log(history);
 
 ```typescript
 import Agent from "@arcaelas/agent";
-import { searchProduct, getWeather, translateText } from "./services";
+import { searchProduct, getWeather, translateText, checkInventory, processPayment } from "./services";
 
-// Create an advanced agent with a detailed personality and rules
+// Create an advanced agent with detailed personality and intelligent failover
 const shopAssistant = new Agent({
   name: "VirtualSeller",
   description:
-    "Assistant specialized in electronic products. Maintains a professional yet friendly tone, has deep knowledge of the product catalog, and always suggests alternatives when a product is unavailable.",
+    "Assistant specialized in electronic products. Maintains a professional yet friendly tone, has deep knowledge of the product catalog, and always suggests alternatives when a product is unavailable. Expert in handling complex multi-step transactions.",
   limits: [
     "Never disclose internal info about discounts or margins",
     "Maintain respectful tone at all times",
     "Avoid making promises about exact delivery times",
+    "Always verify inventory before confirming availability",
   ],
   providers: [
     {
@@ -91,33 +92,93 @@ const shopAssistant = new Agent({
       model: "gpt-4",
       apiKey: process.env.OPENAI_API_KEY,
     },
-    // Fallback provider in case the primary one fails
+    // Intelligent failover: multiple providers with automatic load balancing
     {
-      baseURL: "https://api.alternativa.com/v1",
-      model: "alternative-model",
-      apiKey: process.env.API_KEY_ALTERNATIVA,
+      baseURL: "https://api.anthropic.com/v1",
+      model: "claude-3-sonnet",
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    },
+    {
+      baseURL: "https://api.groq.com/openai/v1",
+      model: "llama-3.1-70b",
+      apiKey: process.env.GROQ_API_KEY,
     },
   ],
 });
 
-// Add advanced tools with specific parameters
+// Add advanced tools with complex parameter validation
 shopAssistant.tool("search_product", {
-  description: "Search products in the catalog by name or features",
+  description: "Search products in the catalog by name, features, or specifications. Returns detailed product information including availability, pricing, and alternatives.",
   parameters: {
-    query: "Search term",
-    category: "Product category (optional)",
-    max_price: "Maximum price (optional)",
+    query: "Search term or product name",
+    category: "Product category (electronics, computers, phones, etc.) - optional",
+    max_price: "Maximum price in USD - optional",
+    min_rating: "Minimum customer rating (1-5) - optional",
+    in_stock_only: "Filter to only show available products (true/false) - optional",
   },
   func: async (params) => {
     try {
-      const results = await searchProduct(
-        params.query,
-        params.category,
-        params.max_price
-      );
-      return JSON.stringify(results);
+      const results = await searchProduct({
+        query: params.query,
+        category: params.category,
+        maxPrice: params.max_price ? parseFloat(params.max_price) : undefined,
+        minRating: params.min_rating ? parseFloat(params.min_rating) : undefined,
+        inStockOnly: params.in_stock_only === 'true',
+      });
+      return JSON.stringify({
+        products: results,
+        total: results.length,
+        searchTerm: params.query,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
-      return `Search error: ${error.message}`;
+      return `Search error: ${error.message}. Please try a different search term.`;
+    }
+  },
+});
+
+// Multiple tools working together for complex workflows
+shopAssistant.tool("check_inventory", {
+  description: "Check real-time inventory levels for specific products",
+  parameters: {
+    product_id: "Product ID to check",
+    location: "Store location or 'online' - optional",
+  },
+  func: async (params) => {
+    const inventory = await checkInventory(params.product_id, params.location);
+    return JSON.stringify({
+      productId: params.product_id,
+      available: inventory.quantity > 0,
+      quantity: inventory.quantity,
+      location: params.location || 'online',
+      lastUpdated: inventory.lastUpdated,
+    });
+  },
+});
+
+shopAssistant.tool("process_payment", {
+  description: "Process payment for selected products (requires prior authorization)",
+  parameters: {
+    items: "JSON array of items with product_id and quantity",
+    payment_method: "Payment method (card, paypal, etc.)",
+    shipping_address: "Full shipping address",
+  },
+  func: async (params) => {
+    try {
+      const items = JSON.parse(params.items);
+      const result = await processPayment({
+        items,
+        paymentMethod: params.payment_method,
+        shippingAddress: params.shipping_address,
+      });
+      return JSON.stringify({
+        success: true,
+        transactionId: result.transactionId,
+        total: result.total,
+        estimatedDelivery: result.estimatedDelivery,
+      });
+    } catch (error) {
+      return `Payment processing failed: ${error.message}`;
     }
   },
 });
@@ -143,15 +204,27 @@ shopAssistant.tool("translate", {
   },
 });
 
-// Example of a multi-interaction conversation
+// Example of a complex multi-step conversation with parallel tool usage
 const conversation = await shopAssistant.answer([
   {
     role: "user",
-    content: "Hi, I’m looking for a smartphone with a good camera under €800",
+    content: "Hi, I need a smartphone with excellent camera under €800, and I want to make sure it's in stock before I decide",
   },
-  // The agent might invoke the search_product tool here
+  // The agent will automatically:
+  // 1. Search for products matching criteria
+  // 2. Check inventory for found products
+  // 3. Provide recommendations with real-time availability
+  // 4. Handle any follow-up questions about specifications
+  // 5. Process payment if user decides to purchase
+  // All tool calls and responses are automatically managed
+]);
 
-  // Agent replies and tool responses will be automatically added to the history
+// Advanced conversation with error recovery
+const conversationWithErrorHandling = await shopAssistant.answer([
+  { role: "user", content: "Process my order for items [invalid-json}" },
+  // Agent handles JSON parsing errors gracefully and asks for clarification
+  { role: "user", content: "Let me try again: process order for product ID 12345, quantity 2" },
+  // Agent successfully processes the corrected request
 ]);
 ```
 
@@ -213,52 +286,338 @@ Main class to create and manage agents.
 
 10. **API security**: Never hardcode API keys; use environment variables instead.
 
-## Advanced Features
+## Internal Architecture & Smart Systems
 
-### Tool Function Signatures
+The agent leverages sophisticated internal systems to provide reliable, scalable, and intelligent conversation handling.
 
-The library supports two ways to add tools:
+### Intelligent Provider Management
+
+The agent implements a **smart multi-provider system** with automatic load balancing and failover:
 
 ```typescript
-// Method 1: With explicit parameters schema
-agent.tool("tool_name", {
-  description: "What this tool does",
+// Each provider becomes a specialized function wrapper
+const providers = this.providers.map(({ baseURL, apiKey, model }) => {
+  const client = new OpenAI({ baseURL, apiKey });
+  return (params) => client.chat.completions.create({ ...params, model });
+});
+
+// Random selection for load balancing + automatic failover
+const idx = Math.floor(Math.random() * providers.length);
+const selectedProvider = providers[idx];
+// If provider fails, it's automatically removed and next one is tried
+```
+
+**Provider System Benefits:**
+- 🔄 **Load Balancing**: Random selection distributes requests across providers
+- 🛡️ **Automatic Failover**: Failed providers are removed, conversation continues seamlessly
+- 🌐 **Multi-API Support**: Works with OpenAI, Anthropic, Groq, or any OpenAI-compatible API
+- ⚙️ **Independent Configuration**: Each provider has its own baseURL, apiKey, and model
+- 📊 **Transparent Operations**: Provider switching is invisible to the user
+
+### Advanced Conversation Resolution Engine
+
+The agent uses a **6-iteration resolution cycle** to handle complex multi-step workflows:
+
+```typescript
+for (let iteration = 0; iteration < 6; iteration++) {
+  // 1. Inject system context (name, description, limits)
+  // 2. Process ALL choices in the response (not just first)
+  // 3. Handle multiple tool calls in parallel
+  // 4. Continue until final response or max iterations reached
+}
+```
+
+**Resolution Engine Features:**
+- 🔄 **Multi-Turn Resolution**: Automatically handles complex tool sequences
+- ⚡ **Parallel Tool Processing**: Multiple tools can be called simultaneously
+- 🧠 **Context Preservation**: System messages (personality, rules) injected automatically
+- 🛑 **Loop Prevention**: 6-iteration limit prevents infinite tool call cycles
+- 📝 **History Management**: All messages and tool results preserved in conversation
+
+### Robust Error Handling & Recovery
+
+Enterprise-grade error handling across all system layers:
+
+**Provider Level Error Recovery:**
+```typescript
+try {
+  response = await selectedProvider(request);
+} catch (error) {
+  // Provider fails → remove from pool and try next automatically
+  providers.splice(providerIndex, 1);
+  continue; // Seamlessly switch to next available provider
+}
+```
+
+**Tool Level Error Management:**
+```typescript
+try {
+  const result = await tool.func(parsedArgs);
+  // Tool succeeds → add result to conversation
+} catch (error) {
+  // Tool fails → add descriptive error message and continue conversation
+  messages.push({
+    role: "tool",
+    tool_call_id: call.id,
+    content: `Tool error: ${error.message}`
+  });
+}
+```
+
+**JSON Parsing with Graceful Fallback:**
+```typescript
+try {
+  args = JSON.parse(toolArguments);
+} catch {
+  // Invalid JSON → inform model with helpful error message
+  return "Error: Invalid JSON in tool arguments. Please check format and try again.";
+}
+```
+
+**Error Scenarios Handled:**
+- ✅ **Provider failures**: Transparent failover to backup providers
+- ✅ **Network timeouts**: Automatic retry with different providers
+- ✅ **Tool not found**: Descriptive error messages returned to conversation
+- ✅ **Malformed JSON**: Clear parsing error feedback with suggestions
+- ✅ **Tool exceptions**: Caught and converted to helpful user messages
+- ✅ **Empty responses**: Intelligent fallback when all providers fail
+- ✅ **Rate limiting**: Provider rotation distributes load naturally
+
+## Advanced Features
+
+### Flexible Tool Registration System
+
+The agent supports **two distinct approaches** for tool registration, optimized for different use cases:
+
+```typescript
+// Method 1: Named tools with explicit parameter schemas
+const removeSearchTool = agent.tool("analyze_sentiment", {
+  description: "Analyze sentiment of text and return detailed breakdown with confidence scores",
   parameters: {
-    param1: "Description of parameter 1",
-    param2: "Description of parameter 2 (optional)",
+    text: "Text to analyze for sentiment",
+    language: "Language code (en, es, fr, de, etc.) - optional, defaults to auto-detect",
+    detailed: "Include confidence scores and emotional breakdown (true/false) - optional",
+    format: "Output format: 'simple' or 'detailed' - optional, defaults to 'simple'",
   },
   func: async (params) => {
-    // params.param1 and params.param2 are available
-    return "string result";
+    // Full parameter object with type-safe access
+    const analysis = await sentimentAnalyzer.analyze({
+      text: params.text,
+      language: params.language || 'auto',
+      detailed: params.detailed === 'true',
+    });
+
+    return JSON.stringify({
+      sentiment: analysis.sentiment, // 'positive', 'negative', 'neutral'
+      confidence: analysis.confidence, // 0.0 to 1.0
+      emotions: params.detailed === 'true' ? analysis.emotions : undefined,
+      language: analysis.detectedLanguage,
+      processedAt: new Date().toISOString(),
+    });
   },
 });
 
-// Method 2: Simple description-only (gets random name)
-agent.tool("Tool description", {
-  description: "What this tool does",
+// Method 2: Quick tools with auto-generated names (perfect for utilities)
+const removeTimestampTool = agent.tool(
+  "Get current timestamp in ISO format with timezone information",
+  async (params) => {
+    // params.input contains the user's request context
+    return JSON.stringify({
+      timestamp: new Date().toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      unix: Date.now(),
+      formatted: new Date().toLocaleString(),
+      context: params.input, // What the user was asking about
+    });
+  }
+);
+
+// Method 3: Dynamic tool management
+const dynamicTools = new Map();
+
+// Add tools conditionally
+if (userHasPermission('database_access')) {
+  dynamicTools.set('db_query', agent.tool("execute_database_query", {
+    description: "Execute SQL queries on authorized databases",
+    parameters: {
+      query: "SQL query to execute",
+      database: "Target database name",
+      readonly: "Read-only mode (true/false) - defaults to true",
+    },
+    func: async (params) => {
+      // Complex database operations with validation
+      return await secureDbQuery(params.query, params.database, params.readonly !== 'false');
+    },
+  }));
+}
+
+// Remove tools when no longer needed
+removeSearchTool(); // Removes the sentiment analysis tool
+removeTimestampTool(); // Removes the timestamp tool
+```
+
+**Tool System Features:**
+- 🔧 **Dual Registration**: Named tools for complex operations, quick tools for utilities
+- 🗂️ **Dynamic Management**: Add/remove tools at runtime based on context
+- 📋 **Rich Parameter Schemas**: Detailed parameter descriptions with type hints
+- 🛡️ **Error Isolation**: Tool failures don't break the conversation flow
+- 🔄 **Return Functions**: Each tool registration returns a cleanup function
+- 📊 **JSON Response**: Tools can return complex data structures as JSON strings
+
+### Enterprise Use Cases & Scalability
+
+The agent is designed to handle **production-grade scenarios** with enterprise requirements:
+
+**Customer Support Automation:**
+```typescript
+const supportAgent = new Agent({
+  name: "SupportBot",
+  description: "Professional customer support specialist with access to knowledge base, ticketing system, and escalation procedures. Maintains empathetic tone while efficiently resolving issues.",
+  limits: [
+    "Never provide account credentials or sensitive information",
+    "Always verify customer identity before accessing account details",
+    "Escalate to human agents for complex billing disputes",
+    "Log all interactions for quality assurance",
+  ],
+  providers: [
+    { baseURL: "https://api.openai.com/v1", model: "gpt-4", apiKey: process.env.OPENAI_KEY },
+    { baseURL: "https://api.anthropic.com/v1", model: "claude-3-sonnet", apiKey: process.env.ANTHROPIC_KEY },
+  ],
+});
+
+supportAgent.tool("search_knowledge_base", {
+  description: "Search company knowledge base for solutions and documentation",
+  parameters: {
+    query: "Search terms or keywords",
+    category: "Category filter (technical, billing, general) - optional",
+    priority: "Issue priority (low, medium, high, critical) - optional",
+  },
   func: async (params) => {
-    // params.input contains user input
-    return "string result";
+    const results = await knowledgeBase.search(params.query, {
+      category: params.category,
+      priority: params.priority,
+    });
+    return JSON.stringify({
+      articles: results.slice(0, 5), // Limit to most relevant
+      totalFound: results.length,
+      searchTime: Date.now(),
+    });
+  },
+});
+
+supportAgent.tool("create_ticket", {
+  description: "Create support ticket for issues requiring human intervention",
+  parameters: {
+    title: "Ticket title summarizing the issue",
+    description: "Detailed description of the customer's problem",
+    priority: "Priority level (low, medium, high, critical)",
+    category: "Issue category for proper routing",
+    customer_id: "Customer identifier",
+  },
+  func: async (params) => {
+    const ticket = await ticketingSystem.create({
+      title: params.title,
+      description: params.description,
+      priority: params.priority,
+      category: params.category,
+      customerId: params.customer_id,
+      source: "ai_agent",
+    });
+    return JSON.stringify({
+      ticketId: ticket.id,
+      status: "created",
+      estimatedResolutionTime: ticket.estimatedResolution,
+      assignedAgent: ticket.assignedTo,
+    });
   },
 });
 ```
 
-### Error Handling
+**Data Analysis & Reporting:**
+```typescript
+const analyticsAgent = new Agent({
+  name: "DataAnalyst",
+  description: "Expert data analyst specializing in business intelligence, statistical analysis, and automated reporting. Provides insights with proper context and confidence intervals.",
+  providers: [
+    { baseURL: "https://api.openai.com/v1", model: "gpt-4", apiKey: process.env.OPENAI_KEY },
+  ],
+});
 
-The agent handles various error scenarios automatically:
+analyticsAgent.tool("execute_sql_query", {
+  description: "Execute SQL queries on data warehouse for analysis",
+  parameters: {
+    query: "SQL query to execute (SELECT statements only)",
+    database: "Target database (sales, marketing, operations)",
+    format: "Output format (table, chart, summary)",
+  },
+  func: async (params) => {
+    // Validate query is read-only
+    if (!/^SELECT/i.test(params.query.trim())) {
+      return "Error: Only SELECT queries are allowed";
+    }
 
-- **Provider failures**: Automatically switches to backup providers
-- **Tool not found**: Returns error message to conversation
-- **JSON parsing errors**: Handles malformed tool arguments
-- **Tool execution errors**: Catches exceptions and returns error messages
-- **Empty responses**: Handles cases where providers return no choices
+    const results = await dataWarehouse.query(params.query, params.database);
+    return JSON.stringify({
+      data: results.rows,
+      columns: results.columns,
+      executionTime: results.executionTime,
+      rowCount: results.rows.length,
+      format: params.format,
+    });
+  },
+});
+```
 
-### Internal Workflow
+### Production Considerations & Limitations
 
-1. **System messages**: Agent name, description, and limits are injected as system messages
-2. **Tool resolution**: Up to 6 iterations to resolve tool calls
-3. **Provider selection**: Random provider selection with automatic failover
-4. **Response processing**: Handles both final responses and tool call requests
+**Performance & Scalability:**
+- 🚀 **Concurrent Conversations**: Handles multiple conversations simultaneously
+- ⏱️ **Response Times**: Typical response time 1-3 seconds (depends on provider and tool complexity)
+- 🔄 **Iteration Limit**: Maximum 6 iterations per conversation to prevent infinite loops
+- 📊 **Tool Parallelization**: Multiple tools can execute simultaneously within one iteration
+- 🎯 **Provider Load Balancing**: Random selection distributes load across multiple APIs
+
+**Security & Best Practices:**
+- 🔐 **API Key Management**: Never hardcode keys; use environment variables or secret managers
+- 🛡️ **Input Validation**: Always validate and sanitize tool parameters
+- 🔍 **Audit Logging**: Log all tool executions for compliance and debugging
+- 🚫 **Permission Control**: Implement role-based access for sensitive tools
+- 🔒 **Data Encryption**: Use HTTPS for all API communications
+
+**Technical Limitations:**
+- 📝 **Tool Return Format**: All tool functions must return strings (use JSON.stringify for complex data)
+- 🔄 **Max Iterations**: 6-iteration limit prevents infinite tool call loops
+- 🎛️ **Provider Dependency**: Requires at least one working OpenAI-compatible provider
+- 💾 **Memory Management**: Large conversation histories may impact performance
+- ⏰ **Timeout Handling**: Long-running tools should implement their own timeout logic
+
+**Monitoring & Observability:**
+```typescript
+// Add monitoring to your agent
+const monitoredAgent = new Agent({
+  name: "ProductionAgent",
+  description: "Production agent with comprehensive monitoring",
+  providers: [...providers],
+});
+
+// Wrap tools with monitoring
+const originalTool = monitoredAgent.tool;
+monitoredAgent.tool = function(name, options) {
+  const wrappedFunc = async (params) => {
+    const startTime = Date.now();
+    try {
+      const result = await options.func(params);
+      logger.info(`Tool ${name} succeeded in ${Date.now() - startTime}ms`);
+      return result;
+    } catch (error) {
+      logger.error(`Tool ${name} failed: ${error.message}`);
+      throw error;
+    }
+  };
+
+  return originalTool.call(this, name, { ...options, func: wrappedFunc });
+};
+```
 
 ## License
 
