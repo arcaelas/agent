@@ -285,6 +285,8 @@ export default class Metadata {
    * @param nodes Nodos a agregar (individual, array o spread)
    * @returns La instancia actual para encadenamiento
    *
+   * @throws {Error} Si algún nodo no es una instancia válida de Metadata
+   *
    * @example
    * ```typescript
    * const base = new Metadata();

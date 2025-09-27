@@ -231,7 +231,7 @@ export interface ProviderConfig {
    * @description
    * URL base del proveedor de IA.
    */
-  baseUrl: string;
+  base_url: string;
 
   /**
    * @description
@@ -243,7 +243,7 @@ export interface ProviderConfig {
    * @description
    * Clave API opcional para autenticación con el proveedor.
    */
-  apiKey?: string;
+  api_key?: string;
 
   /**
    * @description
@@ -601,9 +601,9 @@ export default class Agent {
    *   description: "Agent with multiple providers",
    *   providers: [
    *     {
-   *       baseUrl: "https://api.openai.com",
+   *       base_url: "https://api.openai.com",
    *       model: "gpt-4",
-   *       apiKey: "sk-...",
+   *       api_key: "sk-...",
    *       func: async (ctx) => ({
    *         id: "chatcmpl-123",
    *         object: "chat.completion",
@@ -625,9 +625,9 @@ export default class Agent {
    *       })
    *     },
    *     {
-   *       baseUrl: "https://api.anthropic.com",
+   *       base_url: "https://api.anthropic.com",
    *       model: "claude-3-sonnet",
-   *       apiKey: "sk-ant-...",
+   *       api_key: "sk-ant-...",
    *       headers: { "anthropic-version": "2023-06-01" },
    *       func: async (ctx) => {
    *         // Process context and return ChatCompletion response
