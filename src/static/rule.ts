@@ -28,7 +28,7 @@
  * // Regla condicional programática
  * const premium_support = new Rule("Ofrecer soporte prioritario y beneficios premium", {
  *   when: (agent) => {
- *     const tier = agent.metadata("customer_tier");
+ *     const tier = agent.metadata.get("customer_tier", "");
  *     return tier === "gold" || tier === "platinum";
  *   }
  * });
@@ -68,7 +68,7 @@ export interface RuleOptions {
  * // Regla con condición específica
  * const escalation = new Rule("Escalar a supervisor humano", {
  *   when: (agent) => {
- *     const messages = agent.message();
+ *     const messages = agent.messages;
  *     const recent_msg = messages[messages.length - 1]?.content || "";
  *     return recent_msg.includes("supervisor") || recent_msg.includes("frustrado");
  *   }
@@ -77,7 +77,7 @@ export interface RuleOptions {
  * // Regla con condición programática
  * const region_specific = new Rule("Aplicar regulaciones GDPR", {
  *   when: (agent) => {
- *     const region = agent.metadata("user_region");
+ *     const region = agent.metadata.get("user_region", "");
  *     return region === "EU" || region === "UK";
  *   }
  * });
@@ -140,7 +140,7 @@ export default class Rule {
    * // Condición programática con acceso al contexto del agente
    * const upsell = new Rule("Sugerir productos premium complementarios", {
    *   when: (agent) => {
-   *     const tier = agent.metadata("customer_tier");
+   *     const tier = agent.metadata.get("customer_tier", "");
    *     return tier === "premium" || tier === "gold";
    *   }
    * });
@@ -148,11 +148,11 @@ export default class Rule {
    * // Condición asíncrona con evaluación compleja
    * const loyalty_discount = new Rule("Aplicar descuento por lealtad del 15%", {
    *   when: async (agent) => {
-   *     const purchases = agent.metadata("total_purchases") || 0;
-   *     const member_since = agent.metadata("member_since");
+   *     const purchases = agent.metadata.get("total_purchases", "0");
+   *     const member_since = agent.metadata.get("member_since", "");
    *     const years_since = member_since ?
    *       (Date.now() - new Date(member_since).getTime()) / (1000 * 60 * 60 * 24 * 365) : 0;
-   *     return purchases > 10 && years_since > 2;
+   *     return parseInt(purchases) > 10 && years_since > 2;
    *   }
    * });
    * ```
