@@ -224,12 +224,42 @@ export interface ChatCompletionResponse {
 
 /**
  * @description
- * Función de proveedor de IA que procesa un contexto y retorna una respuesta.
- * Compatible con el schema estándar de OpenAI ChatCompletion API.
+ * Configuración de un proveedor de IA para el agente.
  */
-export type Provider = (
-  ctx: Context
-) => ChatCompletionResponse | Promise<ChatCompletionResponse>;
+export interface ProviderConfig {
+  /**
+   * @description
+   * URL base del proveedor de IA.
+   */
+  baseUrl: string;
+
+  /**
+   * @description
+   * Modelo específico a utilizar del proveedor.
+   */
+  model: string;
+
+  /**
+   * @description
+   * Clave API opcional para autenticación con el proveedor.
+   */
+  apiKey?: string;
+
+  /**
+   * @description
+   * Headers adicionales opcionales para las peticiones HTTP.
+   */
+  headers?: Record<string, string>;
+
+  /**
+   * @description
+   * Función que procesa el contexto y retorna una respuesta de ChatCompletion.
+   * Compatible con el schema estándar de OpenAI ChatCompletion API.
+   */
+  func: (
+    ctx: Context
+  ) => ChatCompletionResponse | Promise<ChatCompletionResponse>;
+}
 
 /**
  * @description
@@ -286,10 +316,11 @@ export interface AgentOptions {
 
   /**
    * @description
-   * Funciones de proveedores de IA disponibles para el agente.
-   * Array de funciones que procesan el contexto y retornan respuestas de ChatCompletion.
+   * Proveedores de IA disponibles para el agente.
+   * Lista de configuraciones de proveedores que el agente puede utilizar
+   * para procesar peticiones y generar respuestas.
    */
-  providers?: Provider[];
+  providers?: ProviderConfig[];
 }
 
 /**
@@ -347,9 +378,9 @@ export default class Agent {
 
   /**
    * @description
-   * Funciones de proveedores de IA configuradas para el agente.
+   * Proveedores de IA configurados para el agente.
    */
-  private readonly _providers: Provider[];
+  private readonly _providers: ProviderConfig[];
 
   /**
    * @description
@@ -377,8 +408,7 @@ export default class Agent {
    *   contexts: parent_context,
    *   metadata: new Metadata().set("team", "sales"),
    *   tools: [crm_tool, analytics_tool],
-   *   messages: [new Message({ role: "system", content: "Sales mode activated" })],
-   *   providers: [openai_provider, claude_provider]
+   *   messages: [new Message({ role: "system", content: "Sales mode activated" })]
    * });
    *
    * // Context automático con herencia
@@ -560,65 +590,76 @@ export default class Agent {
 
   /**
    * @description
-   * Getter para acceder a las funciones de proveedores de IA configuradas.
+   * Getter para acceder a los proveedores de IA configurados.
    *
-   * @returns Array de funciones de proveedores
+   * @returns Array de configuraciones de proveedores
    *
    * @example
    * ```typescript
-   * const openai_provider = async (ctx: Context) => ({
-   *   id: "chatcmpl-123",
-   *   object: "chat.completion",
-   *   created: Math.floor(Date.now() / 1000),
-   *   model: "gpt-4",
-   *   choices: [{
-   *     index: 0,
-   *     message: {
-   *       role: "assistant",
-   *       content: "Hello! How can I help you?"
-   *     },
-   *     finish_reason: "stop"
-   *   }],
-   *   usage: {
-   *     prompt_tokens: 20,
-   *     completion_tokens: 9,
-   *     total_tokens: 29
-   *   }
-   * });
-   *
-   * const claude_provider = async (ctx: Context) => {
-   *   // Process context and return ChatCompletion response
-   *   return {
-   *     id: "chatcmpl-claude-456",
-   *     object: "chat.completion",
-   *     created: Math.floor(Date.now() / 1000),
-   *     model: "claude-3-sonnet",
-   *     choices: [{
-   *       index: 0,
-   *       message: {
-   *         role: "assistant",
-   *         content: "I'm Claude, how may I assist you today?"
-   *       },
-   *       finish_reason: "stop"
-   *     }],
-   *     usage: {
-   *       prompt_tokens: 25,
-   *       completion_tokens: 12,
-   *       total_tokens: 37
-   *     }
-   *   };
-   * };
-   *
    * const agent = new Agent({
    *   name: "APIAgent",
    *   description: "Agent with multiple providers",
-   *   providers: [openai_provider, claude_provider]
+   *   providers: [
+   *     {
+   *       baseUrl: "https://api.openai.com",
+   *       model: "gpt-4",
+   *       apiKey: "sk-...",
+   *       func: async (ctx) => ({
+   *         id: "chatcmpl-123",
+   *         object: "chat.completion",
+   *         created: Math.floor(Date.now() / 1000),
+   *         model: "gpt-4",
+   *         choices: [{
+   *           index: 0,
+   *           message: {
+   *             role: "assistant",
+   *             content: "Hello! How can I help you?"
+   *           },
+   *           finish_reason: "stop"
+   *         }],
+   *         usage: {
+   *           prompt_tokens: 20,
+   *           completion_tokens: 9,
+   *           total_tokens: 29
+   *         }
+   *       })
+   *     },
+   *     {
+   *       baseUrl: "https://api.anthropic.com",
+   *       model: "claude-3-sonnet",
+   *       apiKey: "sk-ant-...",
+   *       headers: { "anthropic-version": "2023-06-01" },
+   *       func: async (ctx) => {
+   *         // Process context and return ChatCompletion response
+   *         return {
+   *           id: "chatcmpl-claude-456",
+   *           object: "chat.completion",
+   *           created: Math.floor(Date.now() / 1000),
+   *           model: "claude-3-sonnet",
+   *           choices: [{
+   *             index: 0,
+   *             message: {
+   *               role: "assistant",
+   *               content: "I'm Claude, how may I assist you today?"
+   *             },
+   *             finish_reason: "stop"
+   *           }],
+   *           usage: {
+   *             prompt_tokens: 25,
+   *             completion_tokens: 12,
+   *             total_tokens: 37
+   *           }
+   *         };
+   *       }
+   *     }
+   *   ]
    * });
    *
    * console.log(agent.providers.length); // 2
+   * console.log(agent.providers.map(p => p.model)); // ["gpt-4", "claude-3"]
    * ```
    */
-  get providers(): Provider[] {
+  get providers(): ProviderConfig[] {
     return this._providers;
   }
 
@@ -641,8 +682,8 @@ export default class Agent {
    * const agent = new Agent({
    *   name: "SearchAgent",
    *   description: "Agent with search capabilities",
-   *   tools: [search_tool, database_tool],
-   *   providers: [openai_provider, claude_provider]
+   *   providers: [openai_provider, claude_provider],
+   *   tools: [search_tool, database_tool]
    * });
    *
    * // Conversación simple
@@ -671,8 +712,8 @@ export default class Agent {
         tool_id: undefined as never,
       })
     );
-    const PROVIDERS: Provider[] = [...this._providers];
-    const FALLBACK: Provider[] = [];
+    const PROVIDERS: ProviderConfig[] = [...this._providers];
+    const FALLBACK: ProviderConfig[] = [];
     const TOOLS = this._context.tools;
 
     while (PROVIDERS.length || FALLBACK.length) {
@@ -681,7 +722,7 @@ export default class Agent {
         PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
         FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
       try {
-        const response = await provider!(this._context);
+        const response = await provider!.func(this._context);
         for (const choice of response.choices) {
           if (choice.message.content) {
             this._context.messages = this._context.messages.concat(

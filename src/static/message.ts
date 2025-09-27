@@ -31,12 +31,6 @@
  *   role: 'assistant',
  *   content: 'Hoy está soleado con 24°C. ¡Perfecto para salir!'
  * });
- *
- * // Mensaje del sistema
- * const system_msg = new Message({
- *   role: 'system',
- *   content: 'Eres un asistente especializado en información meteorológica'
- * });
  * ```
  */
 
