@@ -23,7 +23,7 @@
  *   metadata: new Metadata().set("app", "MyApp").set("version", "1.0"),
  *   rules: [new Rule("Mantén un tono profesional")],
  *   tools: [new Tool("search", () => "search result")],
- *   messages: [new Message("user", "Hello")]
+ *   messages: [new Message({ role: "user", content: "Hello" })]
  * });
  *
  * // Context hijo con herencia automática + configuración local
@@ -32,7 +32,7 @@
  *   metadata: new Metadata().set("theme", "dark"),     // Metadata adicional
  *   rules: [new Rule("Responde en español")],          // Rules adicionales
  *   tools: [new Tool("analyze", () => "analysis")],    // Tools adicionales
- *   messages: [new Message("assistant", "Hola")]       // Messages adicionales
+ *   messages: [new Message({ role: "assistant", content: "Hola" })]       // Messages adicionales
  * });
  *
  * // Acceso transparente a datos heredados y locales
@@ -42,7 +42,7 @@
  * console.log(child_context.messages.length);             // 2 (padre + local)
  *
  * // Manipulación directa de messages
- * child_context.messages.push(new Message("user", "¿Cómo estás?"));
+ * child_context.messages.push(new Message({ role: "user", content: "¿Cómo estás?" }));
  * console.log(child_context.messages.length);             // 3
  * ```
  */
@@ -179,8 +179,8 @@ export default class Context {
    * // Context vacío con operaciones dinámicas de messages
    * const empty_context = new Context({});
    * empty_context.metadata.set("local", "value");
-   * empty_context.messages.push(new Message("user", "Hello"));
-   * empty_context.messages.push(new Message("assistant", "Hi there!"));
+   * empty_context.messages.push(new Message({ role: "user", content: "Hello" }));
+   * empty_context.messages.push(new Message({ role: "assistant", content: "Hi there!" }));
    * console.log(empty_context.messages.length); // 2
    *
    * // Context con herencia completa de contexto padre
@@ -188,7 +188,7 @@ export default class Context {
    *   metadata: new Metadata().set("parent", "config"),
    *   rules: [new Rule("Regla del padre")],
    *   tools: [new Tool("parent_tool", () => "parent result")],
-   *   messages: [new Message("system", "Parent context initialized")]
+   *   messages: [new Message({ role: "system", content: "Parent context initialized" })]
    * });
    *
    * const child_context = new Context({

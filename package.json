@@ -1,9 +1,37 @@
 {
-  "license": "ISC",
-  "version": "1.0.5",
-  "name": "@arcaelas/agent",
-  "homepage": "https://github.com/arcaelas/agent",
+  "author": {
+    "email": "comunity@arcaelas.com",
+    "name": "Arcaelas Insiders",
+    "url": "https://github.com/arcaelas"
+  },
+  "bugs": {
+    "email": "community@arcaelas.com",
+    "url": "https://github.com/arcaelas/agent/issues"
+  },
+  "dependencies": {
+    "@arcaelas/utils": "^2.0.5",
+    "openai": "^5.10.1"
+  },
   "description": "A small box of tools, which are implemented in different factions of the library.",
+  "devDependencies": {
+    "@types/jest": "^29.5.1",
+    "esbuild": "^0.17.18",
+    "jest": "^29.5.0",
+    "typescript": "^5.0.4"
+  },
+  "files": [
+    "*.md",
+    "*.json",
+    "src/**/*.js",
+    "src/**/*.d.ts",
+    "!tsconfig.json"
+  ],
+  "homepage": "https://github.com/arcaelas/agent",
+  "jest": {
+    "testPathIgnorePatterns": [
+      "test/*.ts"
+    ]
+  },
   "keywords": [
     "agent",
     "tools",
@@ -12,48 +40,22 @@
     "arcaelas-insiders",
     "javascript"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/arcaelas/agent.git"
-  },
-  "bugs": {
-    "email": "community@arcaelas.com",
-    "url": "https://github.com/arcaelas/agent/issues"
-  },
-  "main": "build/index.js",
-  "files": [
-    "build/",
-    "*.md",
-    "*.json"
-  ],
-  "author": {
-    "name": "Arcaelas Insiders",
-    "email": "comunity@arcaelas.com",
-    "url": "https://github.com/arcaelas"
-  },
+  "license": "ISC",
+  "main": "src/index.js",
+  "name": "@arcaelas/agent",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arcaelas/agent.git"
+  },
   "scripts": {
-    "build": "tsc && node esbuild.js",
-    "prepublishOnly": "yarn build && npm version patch",
+    "build": "tsc && tsc-alias",
+    "prepublishOnly": "yarn test && yarn build && npm version patch",
     "commit": "npm publish --access=public",
-    "postpublish": "rm -rf build"
+    "postpublish": "find src __tests__ -type f -name '*.js' -o -name '*.d.ts' -o -name '*.map' | xargs rm"
   },
-  "jest": {
-    "testPathIgnorePatterns": [
-      "test/*.ts"
-    ]
-  },
-  "devDependencies": {
-    "@types/jest": "^29.5.1",
-    "esbuild": "^0.17.18",
-    "jest": "^29.5.0",
-    "typescript": "^5.0.4"
-  },
-  "dependencies": {
-    "@arcaelas/utils": "^2.0.5",
-    "openai": "^5.10.1"
-  }
+  "version": "1.0.5"
 }
