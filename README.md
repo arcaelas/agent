@@ -37,7 +37,7 @@ npm install @arcaelas/agent
 ## Basic Usage
 
 ```typescript
-import Agent from "@arcaelas/agent";
+import { Agent } from "@arcaelas/agent";
 
 // Create a basic agent
 const assistant = new Agent({
@@ -72,7 +72,7 @@ console.log(history);
 ## Advanced Usage
 
 ```typescript
-import Agent from "@arcaelas/agent";
+import { Agent } from "@arcaelas/agent";
 import {
   searchProduct,
   getWeather,
