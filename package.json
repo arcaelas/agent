@@ -49,5 +49,5 @@
     "commit": "npm publish --access=public",
     "postpublish": "find src __tests__ -type f -name '*.js' -o -name '*.d.ts' -o -name '*.map' | xargs rm"
   },
-  "version": "1.0.5"
+  "version": "1.0.6"
 }
