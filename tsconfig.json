@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*", "__tests__/**/*"],
+  "include": ["src"],
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
@@ -13,6 +13,7 @@
     "strict": true,
     "noImplicitAny": false,
     "skipLibCheck": true,
+    "outDir": "./src",
     "declaration": true,
     "sourceMap": true,
     "resolveJsonModule": true,
