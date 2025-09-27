@@ -40,19 +40,19 @@
  * const assistant = new Agent({
  *   name: "Technical_Assistant",
  *   description: "Asistente técnico especializado en programación",
- *   providers: [{
- *     base_url: "https://api.openai.com/v1",
- *     model: "gpt-4",
- *     api_key: process.env.OPENAI_API_KEY,
- *     func: async (ctx) => {
- *       // Implementación del proveedor
- *       const client = new OpenAI({ baseURL: base_url, apiKey: api_key });
+ *   providers: [
+ *     async (ctx) => {
+ *       // Implementación del proveedor OpenAI
+ *       const client = new OpenAI({
+ *         baseURL: "https://api.openai.com/v1",
+ *         apiKey: process.env.OPENAI_API_KEY
+ *       });
  *       return await client.chat.completions.create({
- *         model,
+ *         model: "gpt-4",
  *         messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
  *       });
  *     }
- *   }]
+ *   ]
  * });
  *
  * // Añadir herramientas al agente
@@ -108,18 +108,8 @@
  *   description: "Agente especializado en operaciones de desarrollo",
  *   contexts: dev_context,
  *   providers: [
- *     {
- *       base_url: "https://api.openai.com/v1",
- *       model: "gpt-4",
- *       api_key: process.env.OPENAI_API_KEY,
- *       func: async (ctx) => await openai_completion(ctx)
- *     },
- *     {
- *       base_url: "https://api.anthropic.com/v1",
- *       model: "claude-3-sonnet",
- *       api_key: process.env.ANTHROPIC_API_KEY,
- *       func: async (ctx) => await anthropic_completion(ctx)
- *     }
+ *     async (ctx) => await openai_completion(ctx),
+ *     async (ctx) => await anthropic_completion(ctx)
  *   ] // Failover automático
  * });
  *
@@ -167,12 +157,7 @@ export * from "./static/tool";
  *   name: "Customer_Support",
  *   description: "Agente de soporte al cliente profesional",
  *   providers: [
- *     {
- *       base_url: "https://api.openai.com/v1",
- *       model: "gpt-4",
- *       api_key: process.env.OPENAI_API_KEY,
- *       func: async (ctx) => await openai_completion(ctx)
- *     }
+ *     async (ctx) => await openai_completion(ctx)
  *   ]
  * });
  *
@@ -180,7 +165,7 @@ export * from "./static/tool";
  * ```
  *
  * @see {@link AgentOptions} Para opciones de configuración completas
- * @see {@link ProviderConfig} Para configuración de proveedores
+ * @see {@link Provider} Para configuración de proveedores
  */
 export { default as Agent } from "./static/agent";
 
@@ -427,3 +412,63 @@ export { default as Rule } from "./static/rule";
  * @see {@link ToolFunction} Para definición de funciones de herramientas
  */
 export { default as Tool } from "./static/tool";
+
+/* ================================================================================================
+ * EXPORTACIONES DE HERRAMIENTAS INCORPORADAS
+ * ================================================================================================ */
+
+/**
+ * @description
+ * Herramienta para realizar peticiones HTTP remotas de forma encapsulada.
+ *
+ * RemoteTool permite a los agentes ejecutar llamadas HTTP a APIs externas
+ * de forma transparente, con soporte para todos los métodos HTTP estándar
+ * y configuración completa de headers y parámetros.
+ *
+ * @example
+ * ```typescript
+ * import { RemoteTool } from '@arcaelas/agent';
+ *
+ * const weather_api = new RemoteTool("get_weather", {
+ *   description: "Obtener información meteorológica",
+ *   parameters: {
+ *     city: "Ciudad para consultar el clima",
+ *     units: "Unidades de temperatura (celsius/fahrenheit)"
+ *   },
+ *   http: {
+ *     method: "GET",
+ *     headers: {
+ *       "X-API-Key": "weather_api_key_123",
+ *       "Accept": "application/json"
+ *     },
+ *     url: "https://api.weather.com/v1/current"
+ *   }
+ * });
+ * ```
+ */
+export { default as RemoteTool } from "./tools/RemoteTool";
+
+/**
+ * @description
+ * Herramienta para obtener información temporal del sistema.
+ *
+ * TimeTool proporciona acceso a la fecha y hora actual con soporte
+ * para diferentes zonas horarias usando la API nativa de JavaScript.
+ *
+ * @example
+ * ```typescript
+ * import { TimeTool } from '@arcaelas/agent';
+ *
+ * // Herramienta básica (zona horaria del sistema)
+ * const system_time = new TimeTool({});
+ *
+ * // Herramienta con zona horaria personalizada
+ * const madrid_time = new TimeTool({
+ *   time_zone: "Europe/Madrid"
+ * });
+ *
+ * // Uso en agente
+ * agent.tools = [system_time, madrid_time];
+ * ```
+ */
+export { default as TimeTool } from "./tools/Time";
