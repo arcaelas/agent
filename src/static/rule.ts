@@ -162,8 +162,6 @@ export default class Rule {
   constructor(description: string, options?: RuleOptions) {
     this.description = description;
     this.when = options?.when || (() => true); // Valor predeterminado: siempre activa
-
-    // Validación básica
     if (!this.description || this.description.trim().length === 0) {
       throw new Error("Rule description is required and cannot be empty");
     }
