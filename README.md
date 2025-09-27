@@ -145,8 +145,7 @@ Create your first AI agent in **3 simple steps**:
 #### Step 1: Import and Setup
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
-import OpenAI from 'openai';
+import { Agent } from "@arcaelas/agent";
 
 // Initialize your AI provider
 const openai = new OpenAI({
@@ -178,7 +177,7 @@ const assistant = new Agent({
 #### Step 3: Start Conversation
 
 ```typescript
-import Agent from "@arcaelas/agent";
+import { Agent } from "@arcaelas/agent";
 import {
   searchProduct,
   getWeather,
