@@ -64,6 +64,10 @@ JSON ONLY:`,
   }
 };
 
+/**
+ * @description
+ * Servidor HTTP que proporciona compatibilidad con OpenAI Chat Completions API.
+ */
 const server = http.createServer((req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -137,14 +141,39 @@ const server = http.createServer((req, res) => {
   );
 });
 
+/**
+ * @description
+ * Puerto donde se ejecuta el servidor API.
+ */
 const PORT = 3000;
 
+/**
+ * @description
+ * Inicia el servidor HTTP en el puerto especificado.
+ *
+ * @example
+ * ```typescript
+ * // El servidor estará disponible en http://localhost:3000
+ * // Endpoints disponibles:
+ * // POST /chat/completions - Compatible con OpenAI Chat Completions
+ * // GET /models - Lista de modelos disponibles
+ * ```
+ */
 server.listen(PORT, () => {
   console.log(`🚀 Claude Code API Server: http://localhost:${PORT}`);
   console.log("📍 POST /chat/completions | GET /models");
   console.log("⏹️  Ctrl+C to stop");
 });
 
+/**
+ * @description
+ * Maneja la señal SIGINT (Ctrl+C) para cerrar el servidor de forma ordenada.
+ *
+ * @example
+ * ```typescript
+ * // Presionar Ctrl+C en la terminal cerrará el servidor limpiamente
+ * ```
+ */
 process.on("SIGINT", () => {
   console.log("\n⏹️  Stopping server...");
   server.close(() => process.exit(0));

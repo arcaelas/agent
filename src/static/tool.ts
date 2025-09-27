@@ -19,10 +19,10 @@
  *
  * // Herramienta avanzada
  * const customer = new Tool('find_customer', {
- *   description: 'Buscar información de cliente',
+ *   description: 'Buscar información de cliente en la base de datos',
  *   parameters: {
- *     email: 'Email del cliente',
- *     include_history: 'Incluir historial (true/false)'
+ *     email: 'Email del cliente a buscar',
+ *     include_history: 'Incluir historial de transacciones (true/false)'
  *   },
  *   func: ({ email, include_history }) => {
  *     return database.find(email, include_history === 'true');
@@ -53,7 +53,8 @@ export interface ToolOptions<T = Record<string, string>> {
   /**
    * @description
    * Función que se ejecuta cuando la herramienta es llamada.
-   * Debe retornar un valor que pueda ser convertido a string.
+   * Debe retornar un valor que pueda ser serializado como string.
+   * Puede ser síncrona o asíncrona.
    */
   func(
     params: T extends object ? T : { input: string }
