@@ -47,7 +47,7 @@
     "build": "tsc && tsc-alias",
     "prepublishOnly": "npm version patch && yarn build",
     "commit": "npm publish --access=public",
-    "postpublish": "find src -type f -name '*.js' -o -name '*.d.ts' -o -name '*.map' | xargs rm -rf"
+    "postpublish": "find src -type f -name '*.js' -o -name '*.d.ts' -o -name '*.map' --delete"
   },
   "version": "1.0.7"
 }
