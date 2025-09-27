@@ -49,5 +49,5 @@
     "commit": "npm publish --access=public",
     "postpublish": "find src -type f -name '*.js' -o -name '*.d.ts' -o -name '*.map' --exec rm -f {} \\;"
   },
-  "version": "1.0.8"
+  "version": "1.0.9"
 }
