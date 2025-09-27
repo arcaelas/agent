@@ -6,10 +6,7 @@
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
-      "@type/*": ["src/@types/*"],
-      "@controller/*": ["src/app/controllers/*"],
-      "@provider/*": ["src/app/providers/*"],
-      "@resource/*": ["src/resources/*"]
+      "~/*": ["src/*"]
     },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
