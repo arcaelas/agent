@@ -13,6 +13,7 @@
   },
   "description": "A small box of tools, which are implemented in different factions of the library.",
   "devDependencies": {
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.0.4"
   },
   "files": [
