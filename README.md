@@ -8,52 +8,1148 @@
 [![npm version](https://badge.fury.io/js/@arcaelas%2Fagent.svg)](https://www.npmjs.com/package/@arcaelas/agent)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ready-blue.svg)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-Custom-orange.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/arcaelas/agent?style=social)](https://github.com/arcaelas/agent)
+[![GitHub Issues](https://img.shields.io/github/issues/arcaelas/agent)](https://github.com/arcaelas/agent/issues)
+[![Downloads](https://img.shields.io/npm/dm/@arcaelas/agent.svg)](https://www.npmjs.com/package/@arcaelas/agent)
 
-Build sophisticated conversational AI agents with automatic failover, reactive state management, and extensible tool systems. Compatible with OpenAI, Anthropic, Groq, and any OpenAI-compatible API.
+## Modern AI Agent Architecture for Enterprise Applications
+
+**@arcaelas/agent** is a production-ready TypeScript library that enables developers to build sophisticated conversational AI agents with enterprise-grade features. Our architecture combines reactive context inheritance, intelligent multi-provider failover, and extensible tool orchestration to create agents that scale from simple chatbots to complex organizational workflows.
+
+**Why Choose @arcaelas/agent?**
+- 🔄 **Intelligent Failover**: Automatic provider switching ensures 99.9% uptime across OpenAI, Anthropic, Groq, and custom APIs
+- 🏗️ **Reactive Architecture**: Context inheritance system that scales from individual agents to enterprise-wide organizational hierarchies
+- 🛠️ **Tool Ecosystem**: Built-in HTTP tools, time utilities, and seamless custom function integration with parallel execution
+- 💎 **Type Safety**: Full TypeScript support with discriminated unions, generics, and comprehensive IDE integration
+- ⚡ **Performance First**: Optimized for high-throughput applications with intelligent load balancing and memory management
+- 🎯 **Developer Experience**: Intuitive API design that reduces complexity while maintaining full control over agent behavior
 
 ---
 
-## Features
+## 📖 Table of Contents
 
-✨ **Multi-Provider Support** - Automatic failover between OpenAI, Anthropic, Groq, and custom providers
-🔄 **Reactive Context System** - Hierarchical state inheritance with automatic propagation
-🛠️ **Extensible Tools** - Built-in HTTP tools, custom functions, and parallel execution
-📝 **Message Management** - Type-safe conversation handling with tool call support
-⚡ **Performance Optimized** - Intelligent load balancing and error recovery
-🎯 **TypeScript Native** - Full type safety with discriminated unions and generics
-🏢 **Enterprise Ready** - Scalable architecture for complex organizational needs
+### Quick Navigation
+- [🚀 Get Started](#-get-started)
+  - [Installation](#installation)
+  - [Basic Setup](#basic-setup)
+  - [First Agent](#first-agent)
+- [💡 Use Cases & Examples](#-use-cases--examples)
+  - [Simple Agent](#simple-agent)
+  - [Advanced Multi-Provider](#advanced-multi-provider)
+  - [Enterprise Architecture](#enterprise-architecture)
+- [🏗️ Core Architecture](#️-core-architecture)
+  - [Agent System](#agent-system)
+  - [Context Inheritance](#context-inheritance)
+  - [Tool Orchestration](#tool-orchestration)
+  - [Provider Management](#provider-management)
+
+### API Reference
+- [📘 Agent Class](#-agent-class)
+- [🔗 Context System](#-context-system)
+- [🛠️ Tool System](#️-tool-system)
+  - [Built-in Tools](#built-in-tools)
+  - [Custom Tools](#custom-tools)
+- [📨 Message Management](#-message-management)
+- [⚙️ Advanced Configuration](#️-advanced-configuration)
+
+### Resources
+- [🔧 Migration Guide](#-migration-guide)
+- [🎯 Performance Tips](#-performance-tips)
+- [❓ Troubleshooting](#-troubleshooting)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
 
 ---
 
-## Installation
+## 🚀 Get Started
+
+### Installation
+
+**@arcaelas/agent** supports multiple installation methods for different environments:
+
+#### Package Managers
 
 ```bash
-# Using npm
+# npm (recommended)
 npm install @arcaelas/agent
 
-# Using yarn
+# yarn
 yarn add @arcaelas/agent
 
-# Using pnpm
+# pnpm
 pnpm add @arcaelas/agent
+
+# bun
+bun add @arcaelas/agent
 ```
 
-**Requirements:**
-- Node.js ≥ 16.0.0
-- TypeScript ≥ 4.5.0 (for TypeScript projects)
+#### CDN (Browser)
 
----
+```html
+<!-- ES Modules -->
+<script type="module">
+  import { Agent, Tool } from 'https://cdn.skypack.dev/@arcaelas/agent';
+</script>
 
-## Quick Start
+<!-- UMD (Global) -->
+<script src="https://unpkg.com/@arcaelas/agent/dist/index.umd.js"></script>
+<script>
+  const { Agent, Tool } = ArcaelasAgent;
+</script>
+```
 
-### Basic Agent Setup
+#### Requirements
+
+- **Node.js** ≥ 16.0.0
+- **TypeScript** ≥ 4.5.0 (for TypeScript projects)
+- **Modern Browser** (ES2020+ support for browser usage)
+
+### Basic Setup
+
+#### Environment Configuration
+
+Create a `.env` file in your project root:
+
+```env
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+
+# Anthropic (optional)
+ANTHROPIC_API_KEY=your_anthropic_api_key
+
+# Groq (optional)
+GROQ_API_KEY=your_groq_api_key
+```
+
+#### TypeScript Configuration
+
+Ensure your `tsconfig.json` includes:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+### First Agent
+
+Create your first AI agent in **3 simple steps**:
+
+#### Step 1: Import and Setup
 
 ```typescript
 import { Agent } from '@arcaelas/agent';
+import OpenAI from 'openai';
 
+// Initialize your AI provider
+const openai = new OpenAI({
+  baseURL: "https://api.openai.com/v1",
+  apiKey: process.env.OPENAI_API_KEY
+});
+```
+
+#### Step 2: Create Agent
+
+```typescript
 const assistant = new Agent({
-  name: "Support_Assistant",
-  description: "Professional customer support agent with technical expertise",
+  name: "Personal_Assistant",
+  description: "Helpful assistant for daily tasks and questions",
+  providers: [
+    async (ctx) => {
+      return await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: ctx.messages.map(m => ({
+          role: m.role,
+          content: m.content
+        }))
+      });
+    }
+  ]
+});
+```
+
+#### Step 3: Start Conversation
+
+```typescript
+// Simple interaction
+const [messages, success] = await assistant.call("What's the weather like today?");
+
+if (success) {
+  const response = messages[messages.length - 1].content;
+  console.log("Assistant:", response);
+} else {
+  console.log("Failed to get response");
+}
+```
+
+### Verification
+
+Test your installation with this complete example:
+
+```typescript
+import { Agent, Tool } from '@arcaelas/agent';
+import OpenAI from 'openai';
+
+// Create a simple time tool
+const time_tool = new Tool("get_current_time", async () => {
+  return new Date().toLocaleString();
+});
+
+// Create agent with tool
+const agent = new Agent({
+  name: "Time_Assistant",
+  description: "Assistant that can tell the current time",
+  tools: [time_tool],
+  providers: [
+    async (ctx) => {
+      const openai = new OpenAI({
+        baseURL: "https://api.openai.com/v1",
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      return await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: ctx.messages.map(m => ({ role: m.role, content: m.content })),
+        tools: ctx.tools?.map(tool => ({
+          type: "function",
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: {
+              type: "object",
+              properties: tool.parameters
+            }
+          }
+        }))
+      });
+    }
+  ]
+});
+
+// Test the agent
+console.log("Testing agent...");
+const [conversation, success] = await agent.call("What time is it?");
+
+if (success) {
+  console.log("✅ Installation successful!");
+  console.log("Response:", conversation[conversation.length - 1].content);
+} else {
+  console.log("❌ Installation failed. Check your API key.");
+}
+```
+
+**Expected Output:**
+```
+Testing agent...
+✅ Installation successful!
+Response: The current time is [current date and time].
+```
+
+---
+
+## 💡 Use Cases & Examples
+
+### Simple Agent
+
+Perfect for getting started with basic conversational AI:
+
+```typescript
+import { Agent } from '@arcaelas/agent';
+import OpenAI from 'openai';
+
+// Create a simple chatbot
+const chatbot = new Agent({
+  name: "Simple_Chatbot",
+  description: "Friendly assistant for basic questions and conversations",
+  providers: [
+    async (ctx) => {
+      const openai = new OpenAI({
+        baseURL: "https://api.openai.com/v1",
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      return await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: ctx.messages.map(m => ({
+          role: m.role,
+          content: m.content
+        }))
+      });
+    }
+  ]
+});
+
+// Use the chatbot
+const [conversation, success] = await chatbot.call("Tell me a joke about programming");
+console.log("Bot:", conversation[conversation.length - 1].content);
+```
+
+### Advanced Multi-Provider
+
+Production-ready setup with automatic failover and tools:
+
+```typescript
+import { Agent, Tool, TimeTool } from '@arcaelas/agent';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+
+// Create utility tools
+const weather_tool = new Tool("get_weather", {
+  description: "Get current weather for any city",
+  parameters: {
+    city: "City name (e.g., 'London', 'New York')",
+    units: "Temperature units: 'celsius' or 'fahrenheit'"
+  },
+  func: async (params) => {
+    // Mock weather API call
+    const temp = params.units === 'celsius' ? '22°C' : '72°F';
+    return `Weather in ${params.city}: Sunny, ${temp}`;
+  }
+});
+
+const time_tool = new TimeTool({ time_zone: "America/New_York" });
+
+// Multi-provider agent with tools
+const advanced_agent = new Agent({
+  name: "Advanced_Assistant",
+  description: "Intelligent assistant with weather and time capabilities",
+  tools: [weather_tool, time_tool],
+  providers: [
+    // Primary: OpenAI GPT-4
+    async (ctx) => {
+      const openai = new OpenAI({
+        baseURL: "https://api.openai.com/v1",
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      return await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: ctx.messages.map(m => ({ role: m.role, content: m.content })),
+        tools: ctx.tools?.map(tool => ({
+          type: "function",
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: {
+              type: "object",
+              properties: tool.parameters
+            }
+          }
+        }))
+      });
+    },
+
+    // Backup: Anthropic Claude
+    async (ctx) => {
+      const anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY
+      });
+
+      return await anthropic.messages.create({
+        model: "claude-3-sonnet-20240229",
+        max_tokens: 4000,
+        messages: ctx.messages.map(m => ({
+          role: m.role === "system" ? "user" : m.role,
+          content: m.content
+        }))
+      });
+    }
+  ]
+});
+
+// Test with tool usage
+const [messages, success] = await advanced_agent.call(
+  "What's the weather like in Tokyo and what time is it in New York?"
+);
+```
+
+### Enterprise Architecture
+
+Scalable setup for organizational use with context inheritance:
+
+```typescript
+import { Agent, Context, Metadata, Rule, Tool } from '@arcaelas/agent';
+
+// Organization-wide base context
+const company_context = new Context({
+  metadata: new Metadata()
+    .set("organization", "Acme Corp")
+    .set("compliance_level", "enterprise")
+    .set("data_retention", "7_years"),
+  rules: [
+    new Rule("Maintain professional communication"),
+    new Rule("Protect confidential information"),
+    new Rule("Log all interactions for audit purposes")
+  ]
+});
+
+// Department-specific context
+const sales_context = new Context({
+  context: company_context, // Inherits from company
+  metadata: new Metadata()
+    .set("department", "Sales")
+    .set("target_region", "North America"),
+  tools: [
+    new Tool("get_customer_info", {
+      description: "Retrieve customer information from CRM",
+      parameters: {
+        customer_id: "Customer ID or email address"
+      },
+      func: async (params) => {
+        // Mock CRM integration
+        return `Customer ${params.customer_id}: Premium tier, active since 2023`;
+      }
+    }),
+
+    new Tool("create_quote", {
+      description: "Generate sales quote for products",
+      parameters: {
+        products: "Comma-separated list of product names",
+        customer_tier: "Customer tier: 'standard', 'premium', or 'enterprise'"
+      },
+      func: async (params) => {
+        // Mock quote generation
+        const discount = params.customer_tier === 'enterprise' ? '15%' : '5%';
+        return `Quote generated for ${params.products} with ${discount} discount`;
+      }
+    })
+  ]
+});
+
+// Specialized sales agent
+const sales_agent = new Agent({
+  name: "Sales_Specialist",
+  description: "Expert sales representative with CRM access and pricing tools",
+  contexts: sales_context, // Inherits complete hierarchy
+  providers: [
+    async (ctx) => {
+      const openai = new OpenAI({
+        baseURL: "https://api.openai.com/v1",
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
+      // Build system message with context
+      const system_message = `You are a ${ctx.metadata.get("department")} representative for ${ctx.metadata.get("organization")}.
+
+Rules:
+${ctx.rules.map(rule => `- ${rule.description}`).join('\n')}
+
+Available tools: ${ctx.tools?.map(t => t.name).join(', ')}`;
+
+      return await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          { role: "system", content: system_message },
+          ...ctx.messages.map(m => ({ role: m.role, content: m.content }))
+        ],
+        tools: ctx.tools?.map(tool => ({
+          type: "function",
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: {
+              type: "object",
+              properties: tool.parameters
+            }
+          }
+        }))
+      });
+    }
+  ]
+});
+
+// Sales interaction example
+const [conversation, success] = await sales_agent.call(
+  "I need a quote for our enterprise software package for customer john@company.com"
+);
+
+// The agent has access to:
+// - Company policies and compliance rules
+// - Sales department tools and metadata
+// - CRM integration and quote generation
+// - Professional communication guidelines
+```
+
+---
+
+## 🏗️ Core Architecture
+
+**@arcaelas/agent** is built on four core principles that enable scalable, maintainable AI agent development:
+
+### Agent System
+The **Agent** is the central orchestrator that combines identity, behavior, tools, and intelligence providers into a cohesive conversational experience.
+
+### Context Inheritance
+**Reactive Context System** provides hierarchical state management where child contexts automatically inherit parent properties while maintaining their own specialized behavior.
+
+### Tool Orchestration
+**Extensible Tool System** allows agents to execute custom functions, make HTTP requests, and interact with external services through a unified interface.
+
+### Provider Management
+**Multi-Provider Architecture** ensures high availability through automatic failover across OpenAI, Anthropic, Groq, and custom AI endpoints.
+
+---
+
+## 📘 API Reference
+
+<details>
+<summary><strong>📌 Agent Class</strong> - Main orchestrator for AI conversations</summary>
+
+### Constructor
+```typescript
+new Agent(options: AgentOptions)
+```
+
+### AgentOptions Interface
+```typescript
+interface AgentOptions {
+  name: string;                           // Unique agent identifier
+  description: string;                    // Behavioral personality description
+  metadata?: Metadata | Metadata[];      // Initial metadata
+  tools?: Tool | Tool[];                  // Available tools
+  rules?: Rule | Rule[];                  // Behavioral rules
+  messages?: Message | Message[];         // Conversation history
+  contexts?: Context | Context[];         // Parent contexts for inheritance
+  providers?: ProviderFunction[];         // AI model provider functions
+}
+```
+
+### Properties
+- `readonly name: string` - Agent identifier
+- `readonly description: string` - Agent behavior description
+- `metadata: Metadata` - Reactive metadata with inheritance
+- `rules: Rule[]` - Combined inherited and local rules
+- `tools: Tool[]` - Deduplicated tools by name (latest wins)
+- `messages: Message[]` - Full conversation history
+- `providers: ProviderFunction[]` - Configured AI provider functions
+
+### Methods
+```typescript
+async call(prompt: string): Promise<[Message[], boolean]>
+```
+Processes user input with automatic tool execution and provider failover.
+
+**Returns:** Tuple of `[conversation_messages, success_status]`
+
+### Example
+```typescript
+const agent = new Agent({
+  name: "Assistant",
+  description: "Helpful AI assistant",
+  providers: [
+    async (ctx) => {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      return await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
+      });
+    }
+  ]
+});
+```
+
+</details>
+
+<details>
+<summary><strong>🔗 Context Class</strong> - Hierarchical state management</summary>
+
+### Constructor
+```typescript
+new Context(options: ContextOptions)
+```
+
+### ContextOptions Interface
+```typescript
+interface ContextOptions {
+  context?: Context | Context[];         // Parent contexts
+  metadata?: Metadata | Metadata[];     // Metadata sources
+  rules?: Rule | Rule[];                 // Behavioral rules
+  tools?: Tool | Tool[];                 // Available tools
+  messages?: Message | Message[];        // Message history
+}
+```
+
+### Properties
+- `metadata: Metadata` - Reactive metadata with inheritance
+- `rules: Rule[]` - Combined rules from hierarchy
+- `tools: Tool[]` - Deduplicated tools (child overrides parent)
+- `messages: Message[]` - Combined message history
+
+### Example
+```typescript
+const base_context = new Context({
+  metadata: new Metadata().set("company", "Acme Corp"),
+  rules: [new Rule("Maintain professional tone")]
+});
+
+const team_context = new Context({
+  context: base_context,  // Inherits from base
+  metadata: new Metadata().set("team", "Engineering"),
+  tools: [new Tool("deploy", async (env) => `Deployed to ${env}`)]
+});
+```
+
+</details>
+
+<details>
+<summary><strong>📊 Metadata Class</strong> - Key-value state management with inheritance</summary>
+
+### Constructor
+```typescript
+new Metadata(...children: (Metadata | Metadata[])[])
+```
+
+### Methods
+```typescript
+get(key: string, fallback?: string | null): string | null
+has(key: string): boolean
+set(key: string, value: string | null | undefined): this
+delete(key: string): this
+clear(): this
+use(...nodes: (Metadata | Metadata[])[]): this
+all(): Record<string, string>
+```
+
+### Example
+```typescript
+const parent_metadata = new Metadata()
+  .set("organization", "Acme Corp")
+  .set("tier", "enterprise");
+
+const child_metadata = new Metadata(parent_metadata)
+  .set("department", "Sales")
+  .set("region", "North America");
+
+console.log(child_metadata.get("organization")); // "Acme Corp" (inherited)
+console.log(child_metadata.get("department"));   // "Sales" (local)
+```
+
+</details>
+
+<details>
+<summary><strong>🛠️ Tool Class</strong> - Function execution system</summary>
+
+### Constructors
+```typescript
+// Simple tool
+new Tool(name: string, handler: (input: string) => any)
+
+// Advanced tool
+new Tool<T>(name: string, options: ToolOptions<T>)
+```
+
+### ToolOptions Interface
+```typescript
+interface ToolOptions<T = Record<string, string>> {
+  description: string;                          // Tool functionality description
+  parameters?: T;                               // Parameter schema object
+  func: (params: T) => string | Promise<string>; // Execution function
+}
+```
+
+### Properties
+- `readonly name: string` - Unique tool identifier
+- `readonly description: string` - Functionality description
+- `readonly parameters: T | { input: string }` - Parameter schema
+- `readonly func: Function` - Execution function
+
+### Examples
+```typescript
+// Simple tool
+const time_tool = new Tool("get_time", async () => {
+  return new Date().toLocaleString();
+});
+
+// Advanced tool with parameters
+const calculator = new Tool("calculate", {
+  description: "Perform mathematical calculations",
+  parameters: {
+    expression: "Mathematical expression to evaluate",
+    precision: "Number of decimal places (optional)"
+  },
+  func: async (params) => {
+    const result = eval(params.expression);
+    const precision = parseInt(params.precision) || 2;
+    return result.toFixed(precision);
+  }
+});
+```
+
+</details>
+
+<details>
+<summary><strong>📨 Message Class</strong> - Type-safe conversation handling</summary>
+
+### Constructor
+```typescript
+new Message(options: MessageOptions)
+```
+
+### MessageOptions (Union Type)
+```typescript
+type MessageOptions =
+  | { role: "user"; content: string; }
+  | { role: "assistant"; content: string; }
+  | { role: "system"; content: string; }
+  | { role: "tool"; content: string; tool_id: string; };
+```
+
+### Properties
+- `readonly role: MessageRole` - Message role
+- `readonly content: string` - Message content
+- `readonly tool_id?: string` - Tool ID (for tool messages)
+- `readonly timestamp: Date` - Creation timestamp
+- `readonly length: number` - Content length
+
+### Example
+```typescript
+const user_msg = new Message({
+  role: "user",
+  content: "What's the weather like?"
+});
+
+const tool_msg = new Message({
+  role: "tool",
+  content: "Sunny, 22°C",
+  tool_id: "weather_123"
+});
+
+console.log(user_msg.timestamp); // Date object
+console.log(user_msg.length);    // 23
+```
+
+</details>
+
+<details>
+<summary><strong>📋 Rule Class</strong> - Behavioral constraints and guidelines</summary>
+
+### Constructors
+```typescript
+// Always active rule
+new Rule(description: string)
+
+// Conditional rule
+new Rule(description: string, options: RuleOptions)
+```
+
+### RuleOptions Interface
+```typescript
+interface RuleOptions {
+  when: (ctx: Agent) => boolean | Promise<boolean>; // Evaluation function
+}
+```
+
+### Properties
+- `readonly description: string` - Rule description
+- `readonly when: Function` - Evaluation function
+
+### Examples
+```typescript
+// Always active rule
+const professional_rule = new Rule("Maintain professional communication tone");
+
+// Conditional rule
+const business_hours_rule = new Rule(
+  "Outside business hours, inform customer of support availability",
+  {
+    when: (agent) => {
+      const hour = new Date().getHours();
+      return hour < 9 || hour > 17;
+    }
+  }
+);
+
+// Async conditional rule
+const premium_rule = new Rule(
+  "Offer priority support features",
+  {
+    when: async (agent) => {
+      const tier = agent.metadata.get("customer_tier");
+      return tier === "premium" || tier === "enterprise";
+    }
+  }
+);
+```
+
+</details>
+
+<details>
+<summary><strong>🌐 RemoteTool Class</strong> - HTTP API integration</summary>
+
+### Constructor
+```typescript
+new RemoteTool(name: string, options: RemoteToolOptions)
+```
+
+### RemoteToolOptions Interface
+```typescript
+interface RemoteToolOptions {
+  description: string;
+  parameters?: Record<string, string>;
+  http: {
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+    url: string;
+    headers?: Record<string, string>;
+  };
+}
+```
+
+### Features
+- Automatic JSON serialization of arguments
+- Support for all HTTP methods
+- Custom headers and authentication
+- Returns response as plain text
+
+### Example
+```typescript
+import { RemoteTool } from '@arcaelas/agent';
+
+const weather_api = new RemoteTool("get_weather", {
+  description: "Get current weather for a city",
+  parameters: {
+    city: "City name (e.g., 'London', 'Tokyo')",
+    units: "Temperature units: 'metric' or 'imperial'"
+  },
+  http: {
+    method: "GET",
+    url: "https://api.weather.com/v1/current",
+    headers: {
+      "Authorization": "Bearer your_api_key",
+      "Content-Type": "application/json"
+    }
+  }
+});
+
+// Usage in agent
+const agent = new Agent({
+  name: "Weather_Assistant",
+  description: "Assistant with weather capabilities",
+  tools: [weather_api]
+});
+```
+
+</details>
+
+<details>
+<summary><strong>⏰ TimeTool Class</strong> - Timezone-aware time utilities</summary>
+
+### Constructor
+```typescript
+new TimeTool(options?: TimeToolOptions)
+```
+
+### TimeToolOptions Interface
+```typescript
+interface TimeToolOptions {
+  time_zone?: string; // IANA timezone (e.g., "America/New_York", "Europe/London")
+}
+```
+
+### Features
+- Automatic system timezone detection
+- IANA timezone support
+- Consistent "en-US" formatting
+- ISO date handling
+
+### Examples
+```typescript
+import { TimeTool } from '@arcaelas/agent';
+
+// System timezone
+const local_time = new TimeTool();
+
+// Specific timezones
+const tokyo_time = new TimeTool({ time_zone: "Asia/Tokyo" });
+const london_time = new TimeTool({ time_zone: "Europe/London" });
+const ny_time = new TimeTool({ time_zone: "America/New_York" });
+
+// Usage in agent
+const global_agent = new Agent({
+  name: "Global_Assistant",
+  description: "Assistant with multi-timezone awareness",
+  tools: [local_time, tokyo_time, london_time, ny_time]
+});
+
+// Agent can now tell time in multiple zones
+await global_agent.call("What time is it in Tokyo and London?");
+```
+
+</details>
+
+<details>
+<summary><strong>🔧 Provider Function</strong> - AI model integration</summary>
+
+### Type Definition
+```typescript
+type ProviderFunction = (
+  ctx: Context
+) => ChatCompletionResponse | Promise<ChatCompletionResponse>;
+```
+
+### ChatCompletionResponse Interface
+```typescript
+interface ChatCompletionResponse {
+  id: string;
+  object: "chat.completion";
+  created: number;
+  model: string;
+  choices: CompletionChoice[];
+  usage?: CompletionUsage;
+}
+
+interface CompletionChoice {
+  index: number;
+  message: ResponseMessage;
+  finish_reason: "stop" | "length" | "tool_calls" | "content_filter" | null;
+}
+
+interface ResponseMessage {
+  role: "assistant";
+  content: string | null;
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: { name: string; arguments: string; };
+  }> | null;
+}
+```
+
+### Examples
+```typescript
+// OpenAI Provider
+const openai_provider: ProviderFunction = async (ctx) => {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: ctx.messages.map(m => ({ role: m.role, content: m.content })),
+    tools: ctx.tools?.map(tool => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: { type: "object", properties: tool.parameters }
+      }
+    }))
+  });
+};
+
+// Anthropic Provider
+const claude_provider: ProviderFunction = async (ctx) => {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const response = await anthropic.messages.create({
+    model: "claude-3-sonnet-20240229",
+    max_tokens: 4000,
+    messages: ctx.messages.map(m => ({
+      role: m.role === "system" ? "user" : m.role,
+      content: m.content
+    }))
+  });
+
+  // Convert to OpenAI format
+  return {
+    id: response.id,
+    object: "chat.completion",
+    created: Date.now(),
+    model: "claude-3-sonnet-20240229",
+    choices: [{
+      index: 0,
+      message: {
+        role: "assistant",
+        content: response.content[0].text
+      },
+      finish_reason: "stop"
+    }]
+  };
+};
+
+// Multi-provider agent
+const resilient_agent = new Agent({
+  name: "Resilient_Assistant",
+  description: "High-availability assistant with automatic failover",
+  providers: [openai_provider, claude_provider]
+});
+```
+
+</details>
+
+---
+
+## 🎯 Performance Tips
+
+### Memory Optimization
+```typescript
+// Trim conversation history for production
+function manage_conversation_memory(agent: Agent, max_messages: number = 100) {
+  if (agent.messages.length > max_messages) {
+    const system_msgs = agent.messages.filter(m => m.role === "system");
+    const recent_msgs = agent.messages.slice(-max_messages + system_msgs.length);
+    agent.messages = [...system_msgs, ...recent_msgs];
+  }
+}
+
+// Use in production environments
+setInterval(() => manage_conversation_memory(production_agent), 300000);
+```
+
+### Provider Optimization
+```typescript
+// Load balancing with health checks
+const optimized_providers = [
+  async (ctx) => {
+    try {
+      const openai = new OpenAI({ timeout: 30000, apiKey: process.env.OPENAI_API_KEY });
+      return await openai.chat.completions.create({
+        model: "gpt-4-turbo",
+        messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
+      });
+    } catch (error) {
+      throw new Error(`OpenAI failed: ${error.message}`);
+    }
+  },
+  // Additional providers...
+];
+```
+
+### Tool Caching
+```typescript
+const cached_tool = new Tool("expensive_computation", {
+  description: "Cached computation for better performance",
+  parameters: { data: "Input data for processing" },
+  func: async (params) => {
+    const cache_key = `compute_${JSON.stringify(params.data)}`;
+    const cached_result = cache.get(cache_key);
+
+    if (cached_result) return cached_result;
+
+    const result = await heavy_computation(params.data);
+    cache.set(cache_key, result, 3600); // 1 hour TTL
+    return result;
+  }
+});
+```
+
+---
+
+## ❓ Troubleshooting
+
+### Common Issues
+
+**Provider Connection Errors**
+```typescript
+// Check API key validity
+const test_provider = async (ctx) => {
+  try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await openai.models.list();
+    console.log("✅ API connection successful");
+    return response;
+  } catch (error) {
+    console.error("❌ API connection failed:", error.message);
+    throw error;
+  }
+};
+```
+
+**Tool Execution Failures**
+```typescript
+// Debug tool execution
+const debug_tool = new Tool("debug_example", {
+  description: "Tool with comprehensive error handling",
+  parameters: { input: "Test input" },
+  func: async (params) => {
+    try {
+      console.log("Tool input:", params);
+      const result = await risky_operation(params.input);
+      console.log("Tool output:", result);
+      return result;
+    } catch (error) {
+      console.error("Tool error:", error);
+      return `Error: ${error.message}`;
+    }
+  }
+});
+```
+
+**Context Inheritance Issues**
+```typescript
+// Verify context chain
+function debug_context_chain(context: Context) {
+  console.log("Metadata:", context.metadata.all());
+  console.log("Rules:", context.rules.map(r => r.description));
+  console.log("Tools:", context.tools.map(t => t.name));
+}
+```
+
+### Environment Setup
+```bash
+# Verify Node.js version
+node --version  # Should be >= 16.0.0
+
+# Check TypeScript installation
+tsc --version   # Should be >= 4.5.0
+
+# Validate environment variables
+echo $OPENAI_API_KEY | cut -c1-10  # Should show: sk-proj-...
+```
+
+---
+
+## 🔧 Migration Guide
+
+### v1.x to v2.x Migration
+
+<details>
+<summary><strong>Step-by-step migration process</strong></summary>
+
+#### 1. Update Dependencies
+```bash
+npm uninstall @arcaelas/agent@1.x
+npm install @arcaelas/agent@latest
+```
+
+#### 2. Update Agent Configuration
+```typescript
+// Before (v1.x)
+const agent = new Agent({
+  name: "Assistant",
+  personality: "helpful and professional",
+  tools: {
+    calculator: calculatorFunction,
+    weather: weatherFunction
+  },
+  providers: [
+    {
+      base_url: "https://api.openai.com/v1",
+      model: "gpt-4",
+      api_key: process.env.OPENAI_API_KEY,
+      func: openaiFunction
+    }
+  ]
+});
+
+// After (v2.x)
+const agent = new Agent({
+  name: "Assistant",
+  description: "Helpful and professional assistant",
+  tools: [
+    new Tool("calculator", {
+      description: "Perform mathematical calculations",
+      parameters: { expression: "Math expression to evaluate" },
+      func: calculatorFunction
+    }),
+    new Tool("weather", {
+      description: "Get weather information",
+      parameters: { location: "City name or coordinates" },
+      func: weatherFunction
+    })
+  ],
   providers: [
     async (ctx) => {
       const openai = new OpenAI({
@@ -67,939 +1163,247 @@ const assistant = new Agent({
     }
   ]
 });
+```
 
-// Simple conversation
-const [messages, success] = await assistant.call("How can I reset my password?");
+#### 3. Update Message Handling
+```typescript
+// Before (v1.x)
+const response = await agent.ask("Hello");
+
+// After (v2.x)
+const [messages, success] = await agent.call("Hello");
 if (success) {
-  console.log("Response:", messages[messages.length - 1].content);
+  const response = messages[messages.length - 1].content;
 }
 ```
 
-### Adding Tools
+</details>
 
-```typescript
-import { Tool } from '@arcaelas/agent';
-
-// Simple tool
-const time_tool = new Tool("get_time", async () => {
-  return new Date().toLocaleString();
-});
-
-// Advanced tool with parameters
-const weather_tool = new Tool("get_weather", {
-  description: "Get current weather for a location",
-  parameters: {
-    location: "City name or coordinates",
-    units: "Temperature units (celsius/fahrenheit)"
-  },
-  func: async (params) => {
-    const weather_data = await fetch(`https://api.weather.com/v1/current?location=${params.location}&units=${params.units}`);
-    const result = await weather_data.json();
-    return JSON.stringify(result);
-  }
-});
-
-// Add tools to agent
-assistant.tools = [time_tool, weather_tool];
-```
+### Key Breaking Changes
+- **Property Names**: `personality` → `description`
+- **Tool Format**: Plain objects → `Tool` class instances
+- **Provider Format**: Config objects → Functions returning `ChatCompletionResponse`
+- **Response Format**: String response → `[Message[], boolean]` tuple
+- **Import Changes**: Some built-in tools moved to separate exports
 
 ---
 
-## Core Concepts
+## 🤝 Contributing
 
-### Agent Architecture
+We welcome contributions from the community! Here's how you can help improve @arcaelas/agent:
 
-An **Agent** is the main orchestrator that combines:
-- **Identity**: Name and behavioral description
-- **Context**: Hierarchical state with inheritance
-- **Tools**: Executable functions for specific tasks
-- **Rules**: Behavioral constraints and guidelines
-- **Providers**: AI model endpoints with automatic failover
-
-### Reactive Context System
-
-Contexts provide hierarchical state management with automatic inheritance:
-
-```typescript
-import { Context, Metadata, Rule } from '@arcaelas/agent';
-
-// Corporate base context
-const corporate_context = new Context({
-  metadata: new Metadata()
-    .set("company", "Arcaelas Insiders")
-    .set("department", "Engineering"),
-  rules: [
-    new Rule("Maintain professional tone"),
-    new Rule("Protect confidential information")
-  ]
-});
-
-// Team-specific context inheriting from corporate
-const dev_context = new Context({
-  context: corporate_context,  // Automatic inheritance
-  metadata: new Metadata().set("team", "Backend"),
-  tools: [
-    new Tool("deploy", async (env) => `Deployed to ${env}`),
-    new Tool("run_tests", async () => "Tests completed successfully")
-  ]
-});
-
-// Agent inherits complete hierarchy
-const dev_agent = new Agent({
-  name: "DevOps_Agent",
-  description: "Development operations specialist",
-  contexts: dev_context
-});
-
-// Access inherited and local data
-console.log(dev_agent.metadata.get("company"));  // "Arcaelas Insiders"
-console.log(dev_agent.metadata.get("team"));     // "Backend"
-console.log(dev_agent.rules.length);             // Corporate + team rules
-```
-
-### Message System
-
-Type-safe message handling with role-based validation:
-
-```typescript
-import { Message } from '@arcaelas/agent';
-
-// Different message types
-const user_message = new Message({ role: "user", content: "Hello assistant" });
-const system_message = new Message({ role: "system", content: "You are helpful" });
-const tool_message = new Message({ role: "tool", content: "Result: 42", tool_id: "calc_123" });
-
-// Access properties
-console.log(user_message.role);       // "user"
-console.log(user_message.content);    // "Hello assistant"
-console.log(user_message.timestamp);  // Date object
-console.log(user_message.length);     // Content length
-```
-
-### Tool Registration
-
-Two approaches for tool registration:
-
-```typescript
-// Method 1: Named tools with explicit schemas
-const analytics_tool = new Tool("analyze_data", {
-  description: "Perform statistical analysis on datasets",
-  parameters: {
-    dataset: "CSV data or JSON array",
-    analysis_type: "Type of analysis (mean, median, correlation, etc.)",
-    format: "Output format (table, chart, summary)"
-  },
-  func: async (params) => {
-    const data = JSON.parse(params.dataset);
-    const result = await performAnalysis(data, params.analysis_type);
-    return JSON.stringify(result);
-  }
-});
-
-// Method 2: Quick utilities with auto-generated names
-const uuid_tool = new Tool("generate_uuid", async () => {
-  return crypto.randomUUID();
-});
-
-agent.tools = [analytics_tool, uuid_tool];
-```
-
----
-
-## API Reference
-
-### Agent Class
-
-#### Constructor
-```typescript
-new Agent(options: AgentOptions)
-```
-
-**AgentOptions:**
-- `name: string` - Unique agent identifier
-- `description: string` - Behavioral personality description
-- `metadata?: Metadata | Metadata[]` - Initial metadata
-- `tools?: Tool | Tool[]` - Available tools
-- `rules?: Rule | Rule[]` - Behavioral rules
-- `messages?: Message | Message[]` - Conversation history
-- `contexts?: Context | Context[]` - Parent contexts for inheritance
-- `providers?: Provider[]` - AI model provider functions
-
-#### Properties
-- `readonly name: string` - Agent identifier
-- `readonly description: string` - Agent behavior description
-- `metadata: Metadata` - Reactive metadata with inheritance
-- `rules: Rule[]` - Combined inherited and local rules
-- `tools: Tool[]` - Deduplicated tools by name (latest wins)
-- `messages: Message[]` - Full conversation history
-- `providers: Provider[]` - Configured AI provider functions
-
-#### Methods
-```typescript
-async call(prompt: string): Promise<[Message[], boolean]>
-```
-Processes user input with automatic tool execution and provider failover.
-
-**Returns:** Tuple of `[conversation_messages, success_status]`
-
----
-
-### Context Class
-
-#### Constructor
-```typescript
-new Context(options: ContextOptions)
-```
-
-**ContextOptions:**
-- `context?: Context | Context[]` - Parent contexts
-- `metadata?: Metadata | Metadata[]` - Metadata sources
-- `rules?: Rule | Rule[]` - Behavioral rules
-- `tools?: Tool | Tool[]` - Available tools
-- `messages?: Message | Message[]` - Message history
-
-#### Properties
-- `metadata: Metadata` - Reactive metadata with inheritance
-- `rules: Rule[]` - Combined rules from hierarchy
-- `tools: Tool[]` - Deduplicated tools (child overrides parent)
-- `messages: Message[]` - Combined message history
-
----
-
-### Metadata Class
-
-#### Constructor
-```typescript
-new Metadata(...children: (Metadata | Metadata[])[])
-```
-
-#### Methods
-```typescript
-get(key: string, fallback?: string | null): string | null
-has(key: string): boolean
-set(key: string, value: string | null | undefined): this
-delete(key: string): this
-clear(): this
-use(...nodes: (Metadata | Metadata[])[]): this
-all(): Record<string, string>
-```
-
----
-
-### Tool Class
-
-#### Constructors
-```typescript
-// Simple tool
-new Tool(name: string, handler: (input: string) => any)
-
-// Advanced tool
-new Tool<T>(name: string, options: ToolOptions<T>)
-```
-
-**ToolOptions:**
-- `description: string` - Tool functionality description
-- `parameters?: T` - Parameter schema object
-- `func: (params: T) => string | Promise<string>` - Execution function
-
-#### Properties
-- `readonly name: string` - Unique tool identifier
-- `readonly description: string` - Functionality description
-- `readonly parameters: T | { input: string }` - Parameter schema
-- `readonly func: Function` - Execution function
-
----
-
-### Message Class
-
-#### Constructor
-```typescript
-new Message(options: MessageOptions)
-```
-
-**MessageOptions (Union Type):**
-```typescript
-| { role: "user"; content: string; }
-| { role: "assistant"; content: string; }
-| { role: "system"; content: string; }
-| { role: "tool"; content: string; tool_id: string; }
-```
-
-#### Properties
-- `readonly role: MessageRole` - Message role
-- `readonly content: string` - Message content
-- `readonly tool_id?: string` - Tool ID (for tool messages)
-- `readonly timestamp: Date` - Creation timestamp
-- `readonly length: number` - Content length
-
----
-
-### Rule Class
-
-#### Constructors
-```typescript
-// Always active rule
-new Rule(description: string)
-
-// Conditional rule
-new Rule(description: string, options: RuleOptions)
-```
-
-**RuleOptions:**
-- `when: (ctx: Agent) => boolean | Promise<boolean>` - Evaluation function
-
-#### Properties
-- `readonly description: string` - Rule description
-- `readonly when: Function` - Evaluation function
-
----
-
-## Built-in Tools
-
-### RemoteTool
-
-HTTP tool for external API integration:
-
-```typescript
-import { RemoteTool } from '@arcaelas/agent';
-
-const translation_tool = new RemoteTool("translate_text", {
-  description: "Translate text between languages using external API",
-  parameters: {
-    text: "Text to translate",
-    source_lang: "Source language code (en, es, fr, etc.)",
-    target_lang: "Target language code"
-  },
-  http: {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer your_api_key",
-      "Content-Type": "application/json"
-    },
-    url: "https://api.translate.service.com/v1/translate"
-  }
-});
-```
-
-**Features:**
-- Automatic JSON serialization of arguments
-- Support for all HTTP methods (GET, POST, PUT, DELETE, PATCH)
-- Custom headers and authentication
-- Returns response as plain text
-
-**Note:** Sends body for ALL HTTP methods including GET (may not be compatible with all APIs)
-
----
-
-### TimeTool
-
-Timezone-aware time information:
-
-```typescript
-import { TimeTool } from '@arcaelas/agent';
-
-// System timezone
-const local_time = new TimeTool();
-
-// Specific timezone
-const tokyo_time = new TimeTool({ time_zone: "Asia/Tokyo" });
-const madrid_time = new TimeTool({ time_zone: "Europe/Madrid" });
-
-agent.tools = [local_time, tokyo_time, madrid_time];
-```
-
-**Features:**
-- Automatic system timezone detection
-- IANA timezone support
-- Consistent "en-US" formatting regardless of timezone
-- ISO date handling
-
----
-
-## Advanced Usage
-
-### Multi-Provider Setup with Failover
-
-```typescript
-const enterprise_agent = new Agent({
-  name: "Enterprise_Assistant",
-  description: "High-availability assistant with intelligent failover",
-  providers: [
-    async (ctx) => {
-      const openai = new OpenAI({ baseURL: "https://api.openai.com/v1", apiKey: process.env.OPENAI_API_KEY });
-      return await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
-      });
-    },
-    async (ctx) => {
-      const anthropic = new Anthropic({ baseURL: "https://api.anthropic.com/v1", apiKey: process.env.ANTHROPIC_API_KEY });
-      // Implementation for Anthropic API
-      return await anthropic.messages.create({
-        model: "claude-3-sonnet-20240229",
-        messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
-      });
-    },
-    async (ctx) => {
-      const groq = new Groq({ baseURL: "https://api.groq.com/openai/v1", apiKey: process.env.GROQ_API_KEY });
-      return await groq.chat.completions.create({
-        model: "llama-3.1-70b-versatile",
-        messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
-      });
-    }
-    }
-  ]
-});
-```
-
-**Failover Features:**
-- Random provider selection for load balancing
-- Automatic removal of failed providers
-- Seamless conversation continuation
-- No user-visible interruption
-
-### Complex Tool Orchestration
-
-```typescript
-// Multi-step workflow with error handling
-const ecommerce_agent = new Agent({
-  name: "Sales_Assistant",
-  description: "E-commerce specialist with inventory and payment capabilities",
-  tools: [
-    new Tool("search_products", {
-      description: "Search product catalog with filters",
-      parameters: {
-        query: "Search terms",
-        category: "Product category (optional)",
-        max_price: "Maximum price filter (optional)",
-        in_stock_only: "Filter to available products (true/false)"
-      },
-      func: async (params) => {
-        try {
-          const products = await productService.search({
-            query: params.query,
-            category: params.category,
-            maxPrice: params.max_price ? parseFloat(params.max_price) : undefined,
-            inStockOnly: params.in_stock_only === "true"
-          });
-          return JSON.stringify({
-            products: products.slice(0, 10),
-            total: products.length,
-            query: params.query
-          });
-        } catch (error) {
-          return `Search failed: ${error.message}. Please try different terms.`;
-        }
-      }
-    }),
-
-    new Tool("check_inventory", {
-      description: "Check real-time product availability",
-      parameters: {
-        product_id: "Product identifier",
-        location: "Store location (optional, defaults to online)"
-      },
-      func: async (params) => {
-        const inventory = await inventoryService.check(params.product_id, params.location);
-        return JSON.stringify({
-          productId: params.product_id,
-          available: inventory.quantity > 0,
-          quantity: inventory.quantity,
-          location: params.location || "online",
-          lastUpdated: inventory.lastUpdated
-        });
-      }
-    }),
-
-    new Tool("process_payment", {
-      description: "Process customer payment for selected items",
-      parameters: {
-        items: "JSON array of {product_id, quantity} objects",
-        payment_method: "Payment method (card, paypal, etc.)",
-        billing_address: "Customer billing address"
-      },
-      func: async (params) => {
-        try {
-          const items = JSON.parse(params.items);
-          const result = await paymentService.process({
-            items,
-            paymentMethod: params.payment_method,
-            billingAddress: params.billing_address
-          });
-          return JSON.stringify({
-            success: true,
-            transactionId: result.transactionId,
-            total: result.total,
-            estimatedDelivery: result.estimatedDelivery
-          });
-        } catch (error) {
-          return `Payment failed: ${error.message}`;
-        }
-      }
-    })
-  ]
-});
-
-// Agent automatically orchestrates: search → inventory check → payment
-const [conversation, success] = await ecommerce_agent.call(
-  "I need a laptop under $1000, check if it's available and process payment with my Visa card"
-);
-```
-
-### Conditional Rules and Business Logic
-
-```typescript
-// Time-based rules
-const support_hours_rule = new Rule(
-  "Outside business hours, inform customer of support availability",
-  {
-    when: (agent) => {
-      const now = new Date();
-      const hour = now.getHours();
-      const is_weekend = now.getDay() === 0 || now.getDay() === 6;
-      return hour < 9 || hour > 17 || is_weekend;
-    }
-  }
-);
-
-// Context-aware rules
-const premium_rule = new Rule(
-  "Offer priority support and exclusive features",
-  {
-    when: (agent) => {
-      const tier = agent.metadata.get("customer_tier", "");
-      return tier === "premium" || tier === "enterprise";
-    }
-  }
-);
-
-// Async rules with external validation
-const compliance_rule = new Rule(
-  "Apply regulatory compliance for financial services",
-  {
-    when: async (agent) => {
-      const region = agent.metadata.get("user_region", "");
-      const compliance_check = await complianceService.check(region);
-      return compliance_check.requiresFinancialCompliance;
-    }
-  }
-);
-
-agent.rules = [support_hours_rule, premium_rule, compliance_rule];
-```
-
-### Enterprise Context Hierarchy
-
-```typescript
-// Organization-wide base context
-const organization_context = new Context({
-  metadata: new Metadata()
-    .set("organization", "Arcaelas Insiders")
-    .set("compliance_level", "enterprise")
-    .set("data_retention", "7_years"),
-  rules: [
-    new Rule("Maintain data privacy according to GDPR"),
-    new Rule("Log all interactions for audit purposes"),
-    new Rule("Never expose internal system information")
-  ]
-});
-
-// Department-specific context
-const engineering_context = new Context({
-  context: organization_context,
-  metadata: new Metadata()
-    .set("department", "Engineering")
-    .set("access_level", "technical"),
-  tools: [
-    new Tool("system_status", async () => await systemMonitor.getStatus()),
-    new Tool("deploy_service", async (env) => await deployment.deploy(env))
-  ]
-});
-
-// Team-specific context
-const backend_context = new Context({
-  context: engineering_context,
-  metadata: new Metadata()
-    .set("team", "Backend")
-    .set("tech_stack", "Node.js"),
-  tools: [
-    new Tool("database_query", async (query) => await db.execute(query)),
-    new Tool("api_metrics", async () => await metrics.getApiStats())
-  ]
-});
-
-// Individual agent with full hierarchy
-const backend_agent = new Agent({
-  name: "Backend_Specialist",
-  description: "Senior backend engineer with full system access",
-  contexts: backend_context,
-  providers: [openai_provider, claude_provider]
-});
-
-// Agent inherits complete organizational hierarchy:
-// - Organization policies and compliance
-// - Engineering department tools and access
-// - Backend team specific capabilities
-// - Individual specialized behavior
-```
-
----
-
-## Error Handling
-
-### Provider Resilience
-
-The agent automatically handles provider failures:
-
-```typescript
-// If primary provider fails, agent automatically tries next available
-const resilient_agent = new Agent({
-  name: "Resilient_Assistant",
-  description: "High-availability agent with automatic failover",
-  providers: [primary_provider, backup_provider, emergency_provider]
-});
-
-try {
-  const [messages, success] = await resilient_agent.call("Process this request");
-  if (!success) {
-    console.log("All providers failed - check connectivity and API keys");
-  }
-} catch (error) {
-  console.error("Unexpected error:", error.message);
-}
-```
-
-### Tool Error Recovery
-
-Tools with error handling maintain conversation flow:
-
-```typescript
-const robust_tool = new Tool("external_api_call", {
-  description: "Call external service with retry logic",
-  parameters: {
-    endpoint: "API endpoint to call",
-    data: "Data to send"
-  },
-  func: async (params) => {
-    try {
-      const response = await fetch(params.endpoint, {
-        method: 'POST',
-        body: JSON.stringify(params.data),
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      return JSON.stringify(result);
-    } catch (error) {
-      // Return error as string - conversation continues
-      return `Service temporarily unavailable: ${error.message}. Please try again later.`;
-    }
-  }
-});
-```
-
----
-
-## Performance Considerations
-
-### Memory Management
-
-```typescript
-// For long-running applications, manage conversation history
-const efficient_agent = new Agent({
-  name: "Production_Agent",
-  description: "Memory-efficient agent for long-running sessions"
-});
-
-// Periodically trim conversation history
-function trimConversationHistory(agent: Agent, maxMessages: number = 50) {
-  if (agent.messages.length > maxMessages) {
-    // Keep system messages and recent conversation
-    const system_messages = agent.messages.filter(m => m.role === "system");
-    const recent_messages = agent.messages.slice(-maxMessages + system_messages.length);
-    agent.messages = [...system_messages, ...recent_messages];
-  }
-}
-
-// Use in production
-setInterval(() => {
-  trimConversationHistory(efficient_agent);
-}, 300000); // Every 5 minutes
-```
-
-### Provider Load Balancing
-
-```typescript
-// Random provider selection distributes load automatically
-const load_balanced_agent = new Agent({
-  name: "Load_Balanced_Agent",
-  description: "Agent with automatic load distribution",
-  providers: [
-    openai_provider_1,
-    openai_provider_2,
-    openai_provider_3,
-    claude_provider_1,
-    claude_provider_2
-  ] // Random selection provides natural load balancing
-});
-```
-
-### Tool Optimization
-
-```typescript
-// Optimize tools for performance
-const optimized_tool = new Tool("fast_computation", {
-  description: "Optimized computation with caching",
-  parameters: {
-    input: "Computation input"
-  },
-  func: async (params) => {
-    // Use caching for expensive operations
-    const cache_key = `computation_${params.input}`;
-    const cached = await cache.get(cache_key);
-
-    if (cached) {
-      return cached;
-    }
-
-    const result = await performExpensiveComputation(params.input);
-    await cache.set(cache_key, result, 3600); // Cache for 1 hour
-
-    return result;
-  }
-});
-```
-
----
-
-## Type Definitions
-
-### Core Types
-
-```typescript
-// Message roles
-type MessageRole = "user" | "assistant" | "tool" | "system";
-
-// Provider function signature
-type ProviderFunction = (ctx: Context) => ChatCompletionResponse | Promise<ChatCompletionResponse>;
-
-// Tool handler signatures
-type SimpleToolHandler = (input: string) => any;
-type AdvancedToolHandler<T> = (params: T extends object ? T : { input: string }) => string | Promise<string>;
-
-// Rule evaluation function
-type RuleEvaluator = (ctx: Agent) => boolean | Promise<boolean>;
-```
-
-### Configuration Interfaces
-
-```typescript
-interface AgentOptions {
-  name: string;
-  description: string;
-  metadata?: Metadata | Metadata[];
-  tools?: Tool | Tool[];
-  rules?: Rule | Rule[];
-  messages?: Message | Message[];
-  contexts?: Context | Context[];
-  providers?: Provider[];
-}
-
-interface ContextOptions {
-  context?: Context | Context[];
-  metadata?: Metadata | Metadata[];
-  rules?: Rule | Rule[];
-  tools?: Tool | Tool[];
-  messages?: Message | Message[];
-}
-
-type Provider = (
-  ctx: Context
-) => ChatCompletionResponse | Promise<ChatCompletionResponse>;
-
-interface ToolOptions<T = Record<string, string>> {
-  description: string;
-  parameters?: T;
-  func: AdvancedToolHandler<T>;
-}
-
-interface RuleOptions {
-  when: RuleEvaluator;
-}
-```
-
-### Response Types
-
-```typescript
-interface ChatCompletionResponse {
-  id: string;
-  object: "chat.completion";
-  created: number;
-  model: string;
-  system_fingerprint?: string | null;
-  choices: CompletionChoice[];
-  usage?: CompletionUsage;
-  service_tier?: string | null;
-}
-
-interface CompletionChoice {
-  index: number;
-  message: ResponseMessage;
-  logprobs?: { content: Array<any> | null; } | null;
-  finish_reason: "stop" | "length" | "tool_calls" | "content_filter" | "function_call" | null;
-}
-
-interface ResponseMessage {
-  role: "assistant";
-  content: string | null;
-  function_call?: { name: string; arguments: string; } | null;
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: { name: string; arguments: string; };
-  }> | null;
-  refusal?: string | null;
-}
-
-interface CompletionUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}
-```
-
----
-
-## Migration Guide
-
-### From v1.x to v2.x
-
-```typescript
-// v1.x (deprecated)
-const oldAgent = new Agent({
-  name: "Assistant",
-  personality: "helpful",
-  tools: { calculator: calculatorFunction }
-});
-
-// v2.x (current)
-const newAgent = new Agent({
-  name: "Assistant",
-  description: "Helpful assistant with calculation capabilities",
-  tools: [
-    new Tool("calculator", {
-      description: "Perform mathematical calculations",
-      parameters: {
-        expression: "Mathematical expression to evaluate"
-      },
-      func: calculatorFunction
-    })
-  ]
-});
-```
-
-### Breaking Changes
-
-- `personality` property renamed to `description`
-- Tools must use `Tool` class instead of plain objects
-- Provider configuration requires `func` implementation
-- Message format standardized to OpenAI schema
-
----
-
-## Examples Repository
-
-Find complete working examples in our [examples repository](https://github.com/arcaelas/agent-examples):
-
-- 🤖 **Customer Support Bot** - Multi-channel support with knowledge base
-- 🛒 **E-commerce Assistant** - Product search, inventory, and payments
-- 📊 **Data Analysis Agent** - SQL queries and report generation
-- 🔧 **DevOps Automation** - Deployment, monitoring, and incident response
-- 🏥 **Healthcare Assistant** - Patient information and appointment scheduling
-- 📚 **Educational Tutor** - Personalized learning with progress tracking
-
----
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
+### Quick Start for Contributors
 
 ```bash
-# Clone repository
-git clone https://github.com/arcaelas/agent.git
+# Fork the repository on GitHub, then:
+git clone https://github.com/your-username/agent.git
 cd agent
 
 # Install dependencies
 npm install
 
-# Run tests
-npm test
+# Create a feature branch
+git checkout -b feature/your-feature-name
 
-# Build library
+# Make your changes and test
+npm run test
 npm run build
+npm run lint
+
+# Commit and push
+git commit -m "feat: add your feature description"
+git push origin feature/your-feature-name
+
+# Create a Pull Request on GitHub
+```
+
+### Development Workflow
+
+#### Local Development
+```bash
+# Watch mode for development
+npm run dev
+
+# Run tests with coverage
+npm run test:coverage
+
+# Type checking
+npm run type-check
+
+# Linting and formatting
+npm run lint
+npm run format
+```
+
+#### Testing Guidelines
+```typescript
+// Example test structure
+import { Agent, Tool } from '../src';
+
+describe('Agent Core Functionality', () => {
+  test('should create agent with tools', async () => {
+    const test_tool = new Tool("test", async () => "test result");
+    const agent = new Agent({
+      name: "Test_Agent",
+      description: "Test agent",
+      tools: [test_tool]
+    });
+
+    expect(agent.tools).toHaveLength(1);
+    expect(agent.tools[0].name).toBe("test");
+  });
+});
 ```
 
 ### Code Standards
 
-- TypeScript strict mode enabled
-- ESLint configuration with Arcaelas standards
-- 100% test coverage requirement
-- Comprehensive JSDoc documentation
+- **TypeScript**: Strict mode enabled with comprehensive type safety
+- **Testing**: Jest with >95% coverage requirement
+- **Linting**: ESLint with Arcaelas configuration
+- **Formatting**: Prettier with consistent style
+- **Documentation**: JSDoc for all public APIs
+
+### Pull Request Guidelines
+
+1. **Clear Description**: Explain what your PR does and why
+2. **Tests**: Include tests for new functionality
+3. **Documentation**: Update README and JSDoc as needed
+4. **Breaking Changes**: Clearly mark and document any breaking changes
+5. **Performance**: Consider performance implications of changes
 
 ---
 
-## License
+## 📄 License
 
-This project is licensed under a Custom License. See [LICENSE](LICENSE) file for details.
+**Custom License with Commercial Flexibility**
 
-**Summary:**
-- ✅ Free for personal, educational, and open-source projects
-- ✅ Commercial use allowed with attribution
-- ❌ Redistribution as competing library prohibited
-- ❌ Trademark usage without permission prohibited
+This project is licensed under a custom license designed for maximum flexibility. See [LICENSE](LICENSE) file for complete details.
 
----
+### License Summary
 
-## Support
+| Use Case | Allowed | Requirements |
+|----------|---------|--------------|
+| **Personal Projects** | ✅ Free | None |
+| **Educational Use** | ✅ Free | None |
+| **Open Source Projects** | ✅ Free | None |
+| **Commercial Applications** | ✅ Allowed | Attribution required |
+| **SaaS/Cloud Services** | ✅ Allowed | Attribution + notification |
+| **Enterprise Solutions** | ✅ Allowed | Contact for enterprise license |
 
-### Community
+### Restrictions
+- ❌ **No Redistribution**: Cannot redistribute as competing library
+- ❌ **No Trademark Use**: Cannot use "Arcaelas" trademark without permission
+- ❌ **No Warranty**: Software provided "as-is" without warranties
 
-- 💬 [Discord Community](https://discord.gg/arcaelas) - Get help and discuss features
-- 🐛 [GitHub Issues](https://github.com/arcaelas/agent/issues) - Report bugs and request features
-- 📖 [Documentation Site](https://docs.arcaelas.com/agent) - Comprehensive guides and tutorials
-
-### Enterprise Support
-
-- 🏢 **Enterprise License** - Commercial licenses with support
-- 🛠️ **Custom Development** - Tailored solutions for your organization
-- 📞 **Priority Support** - Direct access to our engineering team
-
-Contact: [enterprise@arcaelas.com](mailto:enterprise@arcaelas.com)
+### Commercial Licensing
+For enterprise use, custom licensing, or removing attribution requirements:
+📧 **Contact**: [licensing@arcaelas.com](mailto:licensing@arcaelas.com)
 
 ---
 
-## Changelog
+## 🆘 Support & Community
 
-### v1.0.5 (Latest)
-- ✨ Added TimeTool with timezone support
-- 🔧 Enhanced RemoteTool with better error handling
-- 📝 Improved TypeScript definitions
-- 🐛 Fixed context inheritance edge cases
+### 💬 Community Resources
 
-### v1.0.4
-- 🚀 Multi-provider failover system
-- ⚡ Performance optimizations for large conversations
-- 🔒 Enhanced security for tool execution
-- 📊 Better error reporting and logging
+| Platform | Purpose | Link |
+|----------|---------|------|
+| **Discord** | Real-time chat, questions, discussions | [Join Community](https://discord.gg/arcaelas) |
+| **GitHub Issues** | Bug reports, feature requests | [Open Issue](https://github.com/arcaelas/agent/issues) |
+| **GitHub Discussions** | Architecture discussions, ideas | [Join Discussion](https://github.com/arcaelas/agent/discussions) |
+| **Documentation** | Comprehensive guides and tutorials | [docs.arcaelas.com](https://docs.arcaelas.com/agent) |
+| **Stack Overflow** | Technical Q&A | Tag: `arcaelas-agent` |
 
-[View Full Changelog](CHANGELOG.md)
+### 🏢 Enterprise Support
+
+**Professional support for production deployments and enterprise use cases.**
+
+#### Support Tiers
+
+| Tier | Response Time | Features | Price |
+|------|---------------|----------|-------|
+| **Community** | Best effort | Discord, GitHub Issues | Free |
+| **Professional** | 24-48 hours | Email support, architecture review | Contact us |
+| **Enterprise** | 4-8 hours | Phone support, custom development | Contact us |
+| **Mission Critical** | 1-2 hours | Dedicated engineer, SLA guarantees | Contact us |
+
+#### Enterprise Services
+- 🛠️ **Custom Development**: Tailored features for your specific needs
+- 🏗️ **Architecture Review**: Expert review of your agent implementation
+- 📚 **Training**: On-site or remote training for your development team
+- 🔧 **Integration Support**: Help integrating with your existing systems
+- 📞 **Priority Support**: Direct access to our engineering team
+
+**Contact**: [enterprise@arcaelas.com](mailto:enterprise@arcaelas.com)
+
+### 🌟 Contributing to the Community
+
+Help others and improve the ecosystem:
+
+- **Answer Questions**: Help other developers on Discord or GitHub
+- **Share Examples**: Submit real-world usage examples
+- **Write Tutorials**: Create blog posts or tutorials
+- **Report Issues**: Help identify and fix bugs
+- **Suggest Features**: Propose new functionality
 
 ---
+
+## 📈 Changelog & Roadmap
+
+### Recent Releases
+
+#### v1.0.15 (Current)
+- ✨ **New**: Enhanced provider function typing with better error handling
+- 🔧 **Improved**: Context inheritance performance optimization
+- 📝 **Documentation**: Complete README restructure with examples
+- 🐛 **Fixed**: Tool parameter validation edge cases
+- 🔒 **Security**: Enhanced input sanitization for tools
+
+#### v1.0.14
+- ✨ **New**: TimeTool with comprehensive timezone support
+- 🔧 **Improved**: RemoteTool error handling and retry logic
+- 📝 **Documentation**: Expanded API reference with examples
+- 🐛 **Fixed**: Context metadata inheritance issues
+
+#### v1.0.13
+- 🚀 **New**: Multi-provider failover system
+- ⚡ **Performance**: Optimized memory usage for long conversations
+- 🔒 **Security**: Enhanced tool execution sandboxing
+- 📊 **Monitoring**: Better error reporting and logging
+
+### Upcoming Features (Roadmap)
+
+#### v1.1.0 (Q1 2024)
+- 🔌 **Plugin System**: Extensible plugin architecture
+- 📊 **Analytics**: Built-in usage analytics and monitoring
+- 🎯 **Smart Routing**: Intelligent provider selection based on request type
+- 🛡️ **Security**: Advanced security features and audit logging
+
+#### v1.2.0 (Q2 2024)
+- 🌐 **Multi-Modal**: Support for images, audio, and video
+- 🧠 **Memory**: Long-term memory and knowledge persistence
+- 🔄 **Streaming**: Real-time streaming responses
+- 📱 **Mobile**: React Native and mobile platform support
+
+[View Complete Changelog](https://github.com/arcaelas/agent/blob/main/CHANGELOG.md)
+
+---
+
+<div align="center">
+
+## 🚀 Ready to Build?
+
+**Start creating intelligent AI agents today with @arcaelas/agent**
+
+[![Get Started](https://img.shields.io/badge/Get%20Started-4CAF50?style=for-the-badge&logo=rocket&logoColor=white)](https://docs.arcaelas.com/agent/getting-started)
+[![View Examples](https://img.shields.io/badge/View%20Examples-2196F3?style=for-the-badge&logo=github&logoColor=white)](https://github.com/arcaelas/agent-examples)
+[![Join Discord](https://img.shields.io/badge/Join%20Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/arcaelas)
+
+---
+
+### 🌟 Star us on GitHub | 🐦 Follow [@ArcaelasHQ](https://twitter.com/ArcaelasHQ) | 📧 [hello@arcaelas.com](mailto:hello@arcaelas.com)
 
 **Built with ❤️ by [Arcaelas Insiders](https://arcaelas.com)**
+
+*Empowering developers to create the next generation of AI experiences*
+
+</div>
