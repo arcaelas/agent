@@ -150,6 +150,7 @@ plugins:
       lang:
         - en
         - es
+        - de
       separator: '[\s\-\.]+'
   - i18n:
       docs_structure: suffix
@@ -193,6 +194,38 @@ plugins:
             Performance: Rendimiento
             Troubleshooting: Solución de Problemas
             Migration Guide: Guía de Migración
+        - locale: de
+          name: Deutsch
+          build: true
+          nav_translations:
+            Home: Startseite
+            Welcome: Willkommen
+            Installation: Installation
+            Changelog: Änderungsprotokoll
+            Guides: Anleitungen
+            Getting Started: Erste Schritte
+            Core Concepts: Kernkonzepte
+            Providers: Anbieter
+            Best Practices: Best Practices
+            API Reference: API-Referenz
+            Agent: Agent
+            Context: Kontext
+            Metadata: Metadaten
+            Tool: Werkzeug
+            Rule: Regel
+            Message: Nachricht
+            Built-in Tools: Integrierte Werkzeuge
+            Examples: Beispiele
+            Basic Agent: Grundlegender Agent
+            Multi-Provider: Multi-Anbieter
+            Custom Tools: Benutzerdefinierte Werkzeuge
+            Context Inheritance: Kontext-Vererbung
+            Advanced Patterns: Erweiterte Muster
+            Advanced: Erweitert
+            Architecture: Architektur
+            Performance: Leistung
+            Troubleshooting: Fehlerbehebung
+            Migration Guide: Migrationsanleitung
   - minify:
       minify_html: true
       minify_js: true
@@ -208,6 +241,9 @@ extra:
     - name: Español
       link: /agent/es/
       lang: es
+    - name: Deutsch
+      link: /agent/de/
+      lang: de
 
   social:
     - icon: fontawesome/brands/github
