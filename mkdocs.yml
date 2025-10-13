@@ -54,9 +54,6 @@ theme:
     - search.highlight        # Highlight search terms
     - search.share            # Share search results
 
-    # Header
-    - header.autohide         # Auto-hide header on scroll
-
     # Content
     - content.code.copy       # Copy code button
     - content.code.annotate   # Code annotations
