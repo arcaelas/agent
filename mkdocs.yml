@@ -1,0 +1,191 @@
+site_name: Arcaelas Agent
+site_description: Production-ready AI agent library with multi-provider support, reactive contexts, and intelligent tool orchestration
+site_author: Arcaelas Insiders
+site_url: https://arcaelas.github.io/agent/
+
+repo_name: arcaelas/agent
+repo_url: https://github.com/arcaelas/agent
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 Arcaelas Insiders
+
+theme:
+  name: material
+  language: en
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+
+  features:
+    # Navigation
+    - navigation.tracking     # URL updates with scroll
+    - navigation.tabs         # Top-level tabs
+    - navigation.tabs.sticky  # Sticky tabs
+    - navigation.sections     # Section index pages
+    - navigation.expand       # Expand navigation by default
+    - navigation.indexes      # Section index pages
+    - navigation.top          # Back to top button
+
+    # Search
+    - search.suggest          # Search suggestions
+    - search.highlight        # Highlight search terms
+    - search.share            # Share search results
+
+    # Header
+    - header.autohide         # Auto-hide header on scroll
+
+    # Content
+    - content.code.copy       # Copy code button
+    - content.code.annotate   # Code annotations
+    - content.tabs.link       # Link content tabs
+    - content.tooltips        # Improved tooltips
+
+    # Table of contents
+    - toc.follow              # TOC follows scroll
+    - toc.integrate           # TOC integrated in nav
+
+nav:
+  - Home:
+    - Welcome: index.md
+    - Installation: installation.md
+    - Changelog: CHANGELOG.md
+
+  - Guides:
+    - Getting Started: guides/getting-started.md
+    - Core Concepts: guides/core-concepts.md
+    - Providers: guides/providers.md
+    - Best Practices: guides/best-practices.md
+
+  - API Reference:
+    - Agent: api/agent.md
+    - Context: api/context.md
+    - Metadata: api/metadata.md
+    - Tool: api/tool.md
+    - Rule: api/rule.md
+    - Message: api/message.md
+    - Providers: api/providers.md
+    - Built-in Tools: api/built-in-tools.md
+
+  - Examples:
+    - Basic Agent: examples/basic-agent.md
+    - Multi-Provider: examples/multi-provider.md
+    - Custom Tools: examples/custom-tools.md
+    - Context Inheritance: examples/context-inheritance.md
+    - Advanced Patterns: examples/advanced-patterns.md
+
+  - Advanced:
+    - Architecture: advanced/architecture.md
+    - Performance: advanced/performance.md
+    - Troubleshooting: advanced/troubleshooting.md
+    - Migration Guide: advanced/migration.md
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-\.]+'
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/arcaelas/agent
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/@arcaelas/agent
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/arcaelas
+
+  version:
+    provider: mike
+
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: Very helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: Could be better
+          data: 0
+          note: >-
+            Thanks for your feedback. Help us improve this page by
+            <a href="https://github.com/arcaelas/agent/issues/new" target="_blank" rel="noopener">opening an issue</a>.
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js
