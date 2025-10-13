@@ -147,8 +147,52 @@ markdown_extensions:
 
 plugins:
   - search:
-      lang: en
+      lang:
+        - en
+        - es
       separator: '[\s\-\.]+'
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: es
+          name: Español
+          build: true
+          nav_translations:
+            Home: Inicio
+            Welcome: Bienvenida
+            Installation: Instalación
+            Changelog: Registro de Cambios
+            Guides: Guías
+            Getting Started: Comenzando
+            Core Concepts: Conceptos Básicos
+            Providers: Proveedores
+            Best Practices: Mejores Prácticas
+            API Reference: Referencia API
+            Agent: Agente
+            Context: Contexto
+            Metadata: Metadatos
+            Tool: Herramienta
+            Rule: Regla
+            Message: Mensaje
+            Built-in Tools: Herramientas Integradas
+            Examples: Ejemplos
+            Basic Agent: Agente Básico
+            Multi-Provider: Multi-Proveedor
+            Custom Tools: Herramientas Personalizadas
+            Context Inheritance: Herencia de Contexto
+            Advanced Patterns: Patrones Avanzados
+            Advanced: Avanzado
+            Architecture: Arquitectura
+            Performance: Rendimiento
+            Troubleshooting: Solución de Problemas
+            Migration Guide: Guía de Migración
   - minify:
       minify_html: true
       minify_js: true
@@ -157,6 +201,14 @@ plugins:
         remove_comments: true
 
 extra:
+  alternate:
+    - name: English
+      link: /agent/
+      lang: en
+    - name: Español
+      link: /agent/es/
+      lang: es
+
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/arcaelas/agent
