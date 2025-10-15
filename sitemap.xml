@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
         <loc>https://arcaelas.github.io/agent/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/"/>
@@ -10,7 +10,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/CHANGELOG/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/CHANGELOG/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/CHANGELOG/"/>
@@ -18,7 +18,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/installation/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/installation/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/installation/"/>
@@ -26,7 +26,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/advanced/architecture/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/architecture/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/architecture/"/>
@@ -34,7 +34,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/advanced/migration/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/migration/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/migration/"/>
@@ -42,7 +42,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/advanced/performance/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/performance/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/performance/"/>
@@ -50,7 +50,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/advanced/troubleshooting/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/troubleshooting/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/troubleshooting/"/>
@@ -58,7 +58,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/agent/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/agent/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/agent/"/>
@@ -66,7 +66,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/built-in-tools/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/built-in-tools/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/built-in-tools/"/>
@@ -74,7 +74,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/context/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/context/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/context/"/>
@@ -82,7 +82,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/message/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/message/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/message/"/>
@@ -90,7 +90,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/metadata/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/metadata/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/metadata/"/>
@@ -98,7 +98,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/providers/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/providers/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/providers/"/>
@@ -106,7 +106,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/rule/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/rule/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/rule/"/>
@@ -114,7 +114,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/api/tool/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/tool/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/tool/"/>
@@ -122,7 +122,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/examples/advanced-patterns/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/advanced-patterns/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/advanced-patterns/"/>
@@ -130,7 +130,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/examples/basic-agent/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/basic-agent/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/basic-agent/"/>
@@ -138,7 +138,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/examples/context-inheritance/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/context-inheritance/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/context-inheritance/"/>
@@ -146,7 +146,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/examples/custom-tools/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/custom-tools/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/custom-tools/"/>
@@ -154,7 +154,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/examples/multi-provider/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/multi-provider/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/multi-provider/"/>
@@ -162,7 +162,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/guides/best-practices/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/best-practices/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/best-practices/"/>
@@ -170,7 +170,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/guides/core-concepts/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/core-concepts/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/core-concepts/"/>
@@ -178,7 +178,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/guides/getting-started/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/getting-started/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/getting-started/"/>
@@ -186,7 +186,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/guides/providers/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/providers/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/providers/"/>
@@ -194,7 +194,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/"/>
@@ -202,7 +202,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/CHANGELOG/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/CHANGELOG/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/CHANGELOG/"/>
@@ -210,7 +210,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/installation/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/installation/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/installation/"/>
@@ -218,7 +218,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/advanced/architecture/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/advanced/architecture/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/architecture/"/>
@@ -226,7 +226,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/advanced/migration/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/advanced/migration/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/migration/"/>
@@ -234,7 +234,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/advanced/performance/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/advanced/performance/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/performance/"/>
@@ -242,7 +242,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/advanced/troubleshooting/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/advanced/troubleshooting/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/troubleshooting/"/>
@@ -250,7 +250,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/agent/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/agent/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/agent/"/>
@@ -258,7 +258,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/built-in-tools/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/built-in-tools/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/built-in-tools/"/>
@@ -266,7 +266,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/context/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/context/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/context/"/>
@@ -274,7 +274,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/message/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/message/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/message/"/>
@@ -282,7 +282,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/metadata/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/metadata/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/metadata/"/>
@@ -290,7 +290,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/providers/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/providers/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/providers/"/>
@@ -298,7 +298,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/rule/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/rule/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/rule/"/>
@@ -306,7 +306,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/api/tool/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/api/tool/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/tool/"/>
@@ -314,7 +314,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/examples/advanced-patterns/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/examples/advanced-patterns/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/advanced-patterns/"/>
@@ -322,7 +322,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/examples/basic-agent/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/examples/basic-agent/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/basic-agent/"/>
@@ -330,7 +330,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/examples/context-inheritance/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/examples/context-inheritance/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/context-inheritance/"/>
@@ -338,7 +338,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/examples/custom-tools/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/examples/custom-tools/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/custom-tools/"/>
@@ -346,7 +346,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/examples/multi-provider/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/examples/multi-provider/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/multi-provider/"/>
@@ -354,7 +354,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/guides/best-practices/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/guides/best-practices/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/best-practices/"/>
@@ -362,7 +362,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/guides/core-concepts/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/guides/core-concepts/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/core-concepts/"/>
@@ -370,7 +370,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/guides/getting-started/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/guides/getting-started/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/getting-started/"/>
@@ -378,7 +378,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/es/guides/providers/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="es" href="https://arcaelas.github.io/agent/es/guides/providers/"/>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/providers/"/>
@@ -386,7 +386,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/"/>
@@ -394,7 +394,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/CHANGELOG/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/CHANGELOG/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/CHANGELOG/"/>
@@ -402,7 +402,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/installation/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/installation/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/installation/"/>
@@ -410,7 +410,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/advanced/architecture/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/architecture/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/architecture/"/>
@@ -418,7 +418,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/advanced/migration/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/migration/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/migration/"/>
@@ -426,7 +426,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/advanced/performance/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/performance/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/performance/"/>
@@ -434,7 +434,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/advanced/troubleshooting/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/advanced/troubleshooting/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/advanced/troubleshooting/"/>
@@ -442,7 +442,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/agent/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/agent/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/agent/"/>
@@ -450,7 +450,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/built-in-tools/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/built-in-tools/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/built-in-tools/"/>
@@ -458,7 +458,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/context/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/context/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/context/"/>
@@ -466,7 +466,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/message/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/message/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/message/"/>
@@ -474,7 +474,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/metadata/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/metadata/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/metadata/"/>
@@ -482,7 +482,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/providers/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/providers/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/providers/"/>
@@ -490,7 +490,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/rule/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/rule/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/rule/"/>
@@ -498,7 +498,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/api/tool/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/api/tool/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/api/tool/"/>
@@ -506,7 +506,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/examples/advanced-patterns/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/advanced-patterns/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/advanced-patterns/"/>
@@ -514,7 +514,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/examples/basic-agent/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/basic-agent/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/basic-agent/"/>
@@ -522,7 +522,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/examples/context-inheritance/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/context-inheritance/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/context-inheritance/"/>
@@ -530,7 +530,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/examples/custom-tools/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/custom-tools/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/custom-tools/"/>
@@ -538,7 +538,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/examples/multi-provider/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/examples/multi-provider/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/examples/multi-provider/"/>
@@ -546,7 +546,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/guides/best-practices/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/best-practices/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/best-practices/"/>
@@ -554,7 +554,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/guides/core-concepts/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/core-concepts/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/core-concepts/"/>
@@ -562,7 +562,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/guides/getting-started/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/getting-started/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/getting-started/"/>
@@ -570,7 +570,7 @@
     </url>
     <url>
         <loc>https://arcaelas.github.io/agent/de/guides/providers/</loc>
-        <lastmod>2025-10-13</lastmod>
+        <lastmod>2025-10-15</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="de" href="https://arcaelas.github.io/agent/de/guides/providers/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://arcaelas.github.io/agent/guides/providers/"/>
