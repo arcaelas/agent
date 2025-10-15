@@ -710,6 +710,7 @@ export default class Agent {
                         tool_id: c.id,
                         content: JSON.stringify(
                           await T.func(
+                            this,
                             c.function.arguments
                               ? JSON.parse(c.function.arguments)
                               : {}

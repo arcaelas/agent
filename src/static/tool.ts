@@ -31,6 +31,8 @@
  * ```
  */
 
+import Agent from "./agent";
+
 /**
  * @description
  * Opciones para configuración avanzada de herramientas.
@@ -57,6 +59,7 @@ export interface ToolOptions<T = Record<string, string>> {
    * Puede ser síncrona o asíncrona.
    */
   func(
+    agent: Agent,
     params: T extends object ? T : { input: string }
   ): string | Promise<string>;
 }
@@ -65,7 +68,7 @@ export interface ToolOptions<T = Record<string, string>> {
  * @description
  * Función simple para herramientas básicas.
  */
-export type SimpleToolHandler = (input: string) => any;
+export type SimpleToolHandler = (agent: Agent, input: string) => any;
 
 /**
  * @description
@@ -78,7 +81,7 @@ export type SimpleToolHandler = (input: string) => any;
  * @example
  * ```typescript
  * // Herramienta simple para obtener timestamp
- * const timestamp = new Tool('get_timestamp', (input: string) => {
+ * const timestamp = new Tool('get_timestamp', (agent: Agent, input: string) => {
  *   return new Date().toISOString();
  * });
  *
@@ -127,7 +130,7 @@ export default class Tool<T = Record<string, string>> {
    * @description
    * Función ejecutable de la herramienta.
    */
-  readonly func: (params: any) => any;
+  readonly func: (agent: Agent, params: any) => any;
 
   /**
    * @description
@@ -138,7 +141,7 @@ export default class Tool<T = Record<string, string>> {
    *
    * @example
    * ```typescript
-   * const weather = new Tool('get_weather', (input: string) => {
+   * const weather = new Tool('get_weather', (agent: Agent, input: string) => {
    *   // input contiene la consulta del usuario
    *   return "Sunny, 24°C in Madrid";
    * });
