@@ -68,7 +68,10 @@ export interface ToolOptions<T = Record<string, string>> {
  * @description
  * Función simple para herramientas básicas.
  */
-export type SimpleToolHandler = (agent: Agent, input: string) => string | Promise<string>;
+export type SimpleToolHandler = (
+  agent: Agent,
+  input: string
+) => string | Promise<string>;
 
 /**
  * @description
@@ -130,7 +133,10 @@ export default class Tool<T = Record<string, string>> {
    * @description
    * Función ejecutable de la herramienta.
    */
-  readonly func: (agent: Agent, params: T extends object ? T : { input: string }) => string | Promise<string>;
+  readonly func: (
+    agent: Agent,
+    params: T extends object ? T : { input: string }
+  ) => string | Promise<string>;
 
   /**
    * @description
@@ -197,7 +203,7 @@ export default class Tool<T = Record<string, string>> {
     };
     this.description = options.description || this.name;
     this.parameters = options.parameters!;
-    this.func = options.func!;
+    this.func = options.func as any;
   }
 
   /**
