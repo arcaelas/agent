@@ -186,15 +186,18 @@ export default class Tool<T = Record<string, string>> {
     handler_or_options: SimpleToolHandler | ToolOptions<T>
   ) {
     this.name = name;
-
-    const is_simple = typeof handler_or_options === "function";
-    this.description = is_simple ? name : handler_or_options.description;
-    this.parameters = is_simple
-      ? { input: "Entrada para la herramienta" }
-      : handler_or_options.parameters || {
-          input: "Entrada para la herramienta",
-        };
-    this.func = is_simple ? handler_or_options : handler_or_options.func;
+    const options = {
+      ...(typeof handler_or_options === "function"
+        ? {
+            description: name,
+            parameters: { input: "<tool-input>" },
+            func: handler_or_options,
+          }
+        : handler_or_options),
+    };
+    this.description = options.description || this.name;
+    this.parameters = options.parameters!;
+    this.func = options.func!;
   }
 
   /**
@@ -213,14 +216,22 @@ export default class Tool<T = Record<string, string>> {
    * ```
    */
   toJSON(): {
+    type: "function";
     name: string;
     description: string;
-    parameters: T | { input: string };
+    parameters: {
+      type: "object";
+      properties: T | { input: string };
+    };
   } {
     return {
+      type: "function",
       name: this.name,
       description: this.description,
-      parameters: this.parameters,
+      parameters: {
+        type: "object",
+        properties: this.parameters,
+      },
     };
   }
 
