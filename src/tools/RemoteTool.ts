@@ -133,11 +133,9 @@ interface RemoteToolOptions extends Omit<ToolOptions, "func"> {
  * de respuestas.
  *
  * La herramienta serializa automáticamente los argumentos recibidos como
- * JSON en el body de la petición (para TODOS los métodos HTTP incluido GET)
- * y retorna la respuesta como texto plano.
- *
- * IMPORTANTE: El código envía body incluso para métodos GET,
- * lo cual puede no ser compatible con todas las APIs.
+ * JSON en el body de la petición para métodos POST, PUT, PATCH y DELETE.
+ * Para peticiones GET, los argumentos se envían como query parameters en la URL.
+ * Todas las respuestas se retornan como texto plano.
  *
  * @example
  * ```typescript
@@ -216,12 +214,38 @@ export default class RemoteTool extends Tool {
   constructor(name: string, options: RemoteToolOptions) {
     super(name, {
       ...options,
-      func: async (ctx: Agent, args: Record<string, any>) => {
-        return await fetch(options.http.url, {
-          method: options.http.method,
-          headers: options.http.headers,
-          body: JSON.stringify(args),
-        }).then((res) => res.text());
+      func: async (agent: Agent, args: Record<string, any>) => {
+        try {
+          let url = options.http.url;
+          const config: RequestInit = {
+            method: options.http.method,
+            headers: options.http.headers,
+          };
+
+          if (options.http.method === 'GET' && Object.keys(args).length > 0) {
+            const params = new URLSearchParams(args);
+            url = `${url}?${params}`;
+          } else if (options.http.method !== 'GET') {
+            config.body = JSON.stringify(args);
+          }
+
+          const response = await fetch(url, config);
+
+          if (!response.ok) {
+            return JSON.stringify({
+              error: true,
+              status: response.status,
+              message: response.statusText
+            });
+          }
+
+          return await response.text();
+        } catch (error) {
+          return JSON.stringify({
+            error: true,
+            message: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
       },
     });
   }
