@@ -176,7 +176,7 @@ export default class Message<T extends MessageOptions = MessageOptions> {
     if (!this.role) {
       throw new Error("El rol del mensaje es requerido");
     }
-    if (!this.content) {
+    if (this.content === null || this.content === undefined) {
       throw new Error("El contenido del mensaje es requerido");
     }
     if (this.role === "tool" && !this.tool_id) {
@@ -210,15 +210,11 @@ export default class Message<T extends MessageOptions = MessageOptions> {
    *
    * @example
    * ```typescript
-   * const msg = new Message({
-   *   role: 'user',
-   *   content: 'Hola mundo',
-   *   tool_id: 'optional_id'
-   * });
+   * const msg = new Message({ role: 'tool', content: 'Resultado', tool_id: 'tool_call_123' });
    *
    * const msg_data = msg.toJSON();
    * console.log(JSON.stringify(msg)); // Usa automáticamente toJSON()
-   * // Resultado: { "role": "user", "content": "Hola mundo", "timestamp": "..." }
+   * // Resultado: { "role": "tool", "content": "Resultado", "tool_id": "tool_call_123", "timestamp": "..." }
    * ```
    */
   toJSON(): {

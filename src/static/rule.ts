@@ -163,7 +163,7 @@ export default class Rule {
     this.description = description;
     this.when = options?.when || (() => true); // Valor predeterminado: siempre activa
     if (!this.description || this.description.trim().length === 0) {
-      throw new Error("Rule description is required and cannot be empty");
+      throw new Error("La descripción de la regla es requerida y no puede estar vacía");
     }
   }
 
@@ -194,7 +194,7 @@ export default class Rule {
    * @example
    * ```typescript
    * const rule = new Rule("Ser educado", {
-   *   when: (agent) => agent.metadata("user_type") === "customer"
+   *   when: (agent) => agent.metadata.get("user_type", "") === "customer"
    * });
    *
    * const rule_data = rule.toJSON();
@@ -222,7 +222,7 @@ export default class Rule {
    * ```typescript
    * const static_rule = new Rule("Ser educado");
    * const conditional_rule = new Rule("Ofrecer ayuda", {
-   *   when: (agent) => agent.message().length > 0
+   *   when: (agent) => agent.messages.length > 0
    * });
    *
    * console.log(static_rule.toString());     // "Rule: Ser educado [Function]"

@@ -105,7 +105,7 @@ console.log(child.get("lang"));   // "en" (inherited)
 
 **Simple Tool:**
 ```typescript
-const time_tool = new Tool("get_time", async () => {
+const time_tool = new Tool("get_time", async (agent) => {
   return new Date().toLocaleString();
 });
 ```
@@ -118,7 +118,7 @@ const search_tool = new Tool("search_database", {
     query: "Search query string",
     limit: "Maximum results (default: 10)"
   },
-  func: async (params) => {
+  func: async (agent, params) => {
     const results = await database.search(params.query, params.limit || 10);
     return JSON.stringify(results);
   }
