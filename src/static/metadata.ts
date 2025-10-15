@@ -142,16 +142,14 @@ export default class Metadata {
    * ```
    */
   get(key: string, fallback: string | null = null): string | null {
-    // Validamos si localmente tenemos esa propiedad
-    if (key in this._data) {
-      return this._data[key];
-    }
-    // Recorremos los nodos broker
+    let result = fallback;
     for (const node of this._broker) {
-      // Reemplazamos el fallback con lo que vayamos encontrando para dar la ultima coincidencia
-      fallback = node.get(key, fallback)!;
+      const value = node.get(key, result);
+      if (value !== null) {
+        result = value;
+      }
     }
-    return fallback ?? null;
+    return this._data[key] ?? result;
   }
 
   /**
@@ -221,7 +219,7 @@ export default class Metadata {
    * ```
    */
   set(key: string, value: string | null | undefined): this {
-    this._data[key] = value ?? null!;
+    this._data[key] = value ?? null;
     return this;
   }
 

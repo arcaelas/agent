@@ -13,7 +13,7 @@
  * @example
  * ```typescript
  * // Herramienta simple
- * const weather = new Tool('get_weather', (input: string) => {
+ * const weather = new Tool('get_weather', (agent: Agent, input: string) => {
  *   return "Sunny, 24°C";
  * });
  *
@@ -24,7 +24,7 @@
  *     email: 'Email del cliente a buscar',
  *     include_history: 'Incluir historial de transacciones (true/false)'
  *   },
- *   func: ({ email, include_history }) => {
+ *   func: (agent, { email, include_history }) => {
  *     return database.find(email, include_history === 'true');
  *   }
  * });
@@ -68,7 +68,7 @@ export interface ToolOptions<T = Record<string, string>> {
  * @description
  * Función simple para herramientas básicas.
  */
-export type SimpleToolHandler = (agent: Agent, input: string) => any;
+export type SimpleToolHandler = (agent: Agent, input: string) => string | Promise<string>;
 
 /**
  * @description
@@ -93,7 +93,7 @@ export type SimpleToolHandler = (agent: Agent, input: string) => any;
  *     category: 'Categoría específica (opcional)',
  *     max_price: 'Precio máximo (opcional)'
  *   },
- *   func: ({ query, category, max_price }) => {
+ *   func: (agent, { query, category, max_price }) => {
  *     return data_service.search({
  *       query,
  *       category: category || null,
@@ -130,7 +130,7 @@ export default class Tool<T = Record<string, string>> {
    * @description
    * Función ejecutable de la herramienta.
    */
-  readonly func: (agent: Agent, params: any) => any;
+  readonly func: (agent: Agent, params: T extends object ? T : { input: string }) => string | Promise<string>;
 
   /**
    * @description
@@ -165,7 +165,7 @@ export default class Tool<T = Record<string, string>> {
    *     a: 'Primer número',
    *     b: 'Segundo número'
    *   },
-   *   func: ({ operation, a, b }) => {
+   *   func: (agent, { operation, a, b }) => {
    *     const num_a = parseFloat(a);
    *     const num_b = parseFloat(b);
    *     switch (operation) {

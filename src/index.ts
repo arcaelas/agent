@@ -57,7 +57,7 @@
  *
  * // Añadir herramientas al agente
  * assistant.tools = [
- *   new Tool("search_docs", async (query) => {
+ *   new Tool("search_docs", async (agent, query) => {
  *     return await searchDocumentation(query);
  *   })
  * ];
@@ -97,8 +97,8 @@
  *   context: corporate_context, // Herencia automática
  *   metadata: new Metadata().set("team", "Backend"),
  *   tools: [
- *     new Tool("run_tests", async () => "Tests executed successfully"),
- *     new Tool("deploy_service", async (env) => `Deployed to ${env}`)
+ *     new Tool("run_tests", async (agent) => "Tests executed successfully"),
+ *     new Tool("deploy_service", async (agent, env) => `Deployed to ${env}`)
  *   ]
  * });
  *
@@ -344,12 +344,12 @@ export { default as Rule } from "./static/rule";
  * import { Tool } from '@arcaelas/agent';
  *
  * // Herramienta simple de utilidad
- * const timestamp_tool = new Tool("get_timestamp", async () => {
+ * const timestamp_tool = new Tool("get_timestamp", async (agent) => {
  *   return new Date().toISOString();
  * });
  *
  * // Herramienta con parámetros complejos
- * const search_tool = new Tool("search_database", async (params) => {
+ * const search_tool = new Tool("search_database", async (agent, params) => {
  *   const { query, filters, limit = 10 } = params;
  *
  *   try {
@@ -371,7 +371,7 @@ export { default as Rule } from "./static/rule";
  * });
  *
  * // Herramienta con validación avanzada
- * const payment_tool = new Tool("process_payment", async (params) => {
+ * const payment_tool = new Tool("process_payment", async (agent, params) => {
  *   // Validación de parámetros requeridos
  *   const required_fields = ["amount", "currency", "payment_method"];
  *   const missing = required_fields.filter(field => !params[field]);
