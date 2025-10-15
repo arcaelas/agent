@@ -198,7 +198,7 @@ import { Agent, Tool } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 // Create a simple time tool
-const time_tool = new Tool("get_current_time", async () => {
+const time_tool = new Tool("get_current_time", async (agent) => {
   return new Date().toLocaleString();
 });
 
@@ -307,7 +307,7 @@ const weather_tool = new Tool("get_weather", {
     city: "City name (e.g., 'London', 'New York')",
     units: "Temperature units: 'celsius' or 'fahrenheit'"
   },
-  func: async (params) => {
+  func: async (agent, params) => {
     // Mock weather API call
     const temp = params.units === 'celsius' ? '22°C' : '72°F';
     return `Weather in ${params.city}: Sunny, ${temp}`;
@@ -402,7 +402,7 @@ const sales_context = new Context({
       parameters: {
         customer_id: "Customer ID or email address"
       },
-      func: async (params) => {
+      func: async (agent, params) => {
         // Mock CRM integration
         return `Customer ${params.customer_id}: Premium tier, active since 2023`;
       }
@@ -414,7 +414,7 @@ const sales_context = new Context({
         products: "Comma-separated list of product names",
         customer_tier: "Customer tier: 'standard', 'premium', or 'enterprise'"
       },
-      func: async (params) => {
+      func: async (agent, params) => {
         // Mock quote generation
         const discount = params.customer_tier === 'enterprise' ? '15%' : '5%';
         return `Quote generated for ${params.products} with ${discount} discount`;
@@ -592,7 +592,7 @@ const base_context = new Context({
 const team_context = new Context({
   context: base_context,  // Inherits from base
   metadata: new Metadata().set("team", "Engineering"),
-  tools: [new Tool("deploy", async (env) => `Deployed to ${env}`)]
+  tools: [new Tool("deploy", async (agent, env) => `Deployed to ${env}`)]
 });
 ```
 
@@ -639,7 +639,7 @@ console.log(child_metadata.get("department"));   // "Sales" (local)
 ### Constructors
 ```typescript
 // Simple tool
-new Tool(name: string, handler: (input: string) => any)
+new Tool(name: string, handler: (agent: Agent, input: string) => any)
 
 // Advanced tool
 new Tool<T>(name: string, options: ToolOptions<T>)
@@ -650,7 +650,7 @@ new Tool<T>(name: string, options: ToolOptions<T>)
 interface ToolOptions<T = Record<string, string>> {
   description: string;                          // Tool functionality description
   parameters?: T;                               // Parameter schema object
-  func: (params: T) => string | Promise<string>; // Execution function
+  func: (agent: Agent, params: T) => string | Promise<string>; // Execution function
 }
 ```
 
@@ -663,7 +663,7 @@ interface ToolOptions<T = Record<string, string>> {
 ### Examples
 ```typescript
 // Simple tool
-const time_tool = new Tool("get_time", async () => {
+const time_tool = new Tool("get_time", async (agent) => {
   return new Date().toLocaleString();
 });
 
@@ -674,7 +674,7 @@ const calculator = new Tool("calculate", {
     expression: "Mathematical expression to evaluate",
     precision: "Number of decimal places (optional)"
   },
-  func: async (params) => {
+  func: async (agent, params) => {
     const result = eval(params.expression);
     const precision = parseInt(params.precision) || 2;
     return result.toFixed(precision);
@@ -1022,7 +1022,7 @@ const optimized_providers = [
 const cached_tool = new Tool("expensive_computation", {
   description: "Cached computation for better performance",
   parameters: { data: "Input data for processing" },
-  func: async (params) => {
+  func: async (agent, params) => {
     const cache_key = `compute_${JSON.stringify(params.data)}`;
     const cached_result = cache.get(cache_key);
 
@@ -1063,7 +1063,7 @@ const test_provider = async (ctx) => {
 const debug_tool = new Tool("debug_example", {
   description: "Tool with comprehensive error handling",
   parameters: { input: "Test input" },
-  func: async (params) => {
+  func: async (agent, params) => {
     try {
       console.log("Tool input:", params);
       const result = await risky_operation(params.input);
