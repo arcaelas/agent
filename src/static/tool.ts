@@ -225,11 +225,13 @@ export default class Tool<
    */
   toJSON(): {
     type: "function";
-    name: string;
-    description: string;
-    parameters: {
-      type: "object";
-      properties: T | { input: string };
+    function: {
+      name: string;
+      description: string;
+      parameters: {
+        type: "object";
+        properties: T | { input: string };
+      };
     };
   } {
     const parameters = {};
@@ -241,11 +243,13 @@ export default class Tool<
     }
     return {
       type: "function",
-      name: this.name,
-      description: this.description,
-      parameters: {
-        type: "object",
-        properties: parameters as any,
+      function: {
+        name: this.name,
+        description: this.description,
+        parameters: {
+          type: "object",
+          properties: parameters as any,
+        },
       },
     };
   }
