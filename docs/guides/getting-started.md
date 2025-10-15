@@ -92,7 +92,7 @@ import { Agent, Tool } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 // Create a simple time tool
-const time_tool = new Tool("get_current_time", async () => {
+const time_tool = new Tool("get_current_time", async (agent) => {
   return new Date().toLocaleString();
 });
 
@@ -271,13 +271,13 @@ const weather_tool = new Tool("get_weather", {
   parameters: {
     city: "City name (e.g., 'London', 'New York')"
   },
-  func: async (params) => {
+  func: async (agent, params) => {
     // In production, call a real weather API
     return `Weather in ${params.city}: Sunny, 22°C`;
   }
 });
 
-const time_tool = new Tool("get_time", async () => {
+const time_tool = new Tool("get_time", async (agent) => {
   return new Date().toLocaleString();
 });
 

@@ -17,7 +17,7 @@ Tools extend agent capabilities by providing access to external data, APIs, and 
 import { Agent, Tool } from '@arcaelas/agent';
 
 // Simple tool with string input
-const weather_tool = new Tool('get_weather', (input: string) => {
+const weather_tool = new Tool('get_weather', (agent, input: string) => {
   // input contains the natural language request
   // In production, you would call a real weather API
   return `Weather for ${input}: Sunny, 24°C`;
@@ -39,7 +39,7 @@ const [messages, success] = await agent.call("What's the weather in Madrid?");
 ### Timestamp Tool
 
 ```typescript
-const timestamp_tool = new Tool('get_current_time', () => {
+const timestamp_tool = new Tool('get_current_time', (agent) => {
   return new Date().toISOString();
 });
 ```
@@ -47,7 +47,7 @@ const timestamp_tool = new Tool('get_current_time', () => {
 ### Random Number Tool
 
 ```typescript
-const random_tool = new Tool('generate_random', (input: string) => {
+const random_tool = new Tool('generate_random', (agent, input: string) => {
   const max = parseInt(input) || 100;
   return Math.floor(Math.random() * max).toString();
 });
@@ -67,7 +67,7 @@ const search_customers = new Tool('search_customers', {
     limit: 'Maximum number of results (default: 10)',
     status: 'Filter by customer status: active, inactive, or all'
   },
-  func: async ({ query, limit, status }) => {
+  func: async (agent, { query, limit, status }) => {
     // Parse parameters
     const max_results = limit ? parseInt(limit) : 10;
     const filter_status = status || 'all';
@@ -94,7 +94,7 @@ const github_search = new Tool('search_github_repos', {
     sort: 'Sort by: stars, forks, or updated (default: stars)',
     order: 'Order: asc or desc (default: desc)'
   },
-  func: async ({ query, language, sort, order }) => {
+  func: async (agent, { query, language, sort, order }) => {
     const search_params = new URLSearchParams({
       q: language ? `${query} language:${language}` : query,
       sort: sort || 'stars',
@@ -130,7 +130,7 @@ const calculator = new Tool('calculate', {
     a: 'First number',
     b: 'Second number (not required for sqrt)'
   },
-  func: ({ operation, a, b }) => {
+  func: (agent, { operation, a, b }) => {
     const num_a = parseFloat(a);
     const num_b = b ? parseFloat(b) : 0;
 
@@ -173,7 +173,7 @@ const weather_tool = new Tool('get_weather', {
     city: 'City name',
     units: 'Temperature units: celsius or fahrenheit (default: celsius)'
   },
-  func: async ({ city, units }) => {
+  func: async (agent, { city, units }) => {
     const unit_system = units === 'fahrenheit' ? 'imperial' : 'metric';
 
     const response = await fetch(
@@ -200,7 +200,7 @@ const news_tool = new Tool('get_latest_news', {
     topic: 'News topic or category',
     count: 'Number of articles to return (default: 5)'
   },
-  func: async ({ topic, count }) => {
+  func: async (agent, { topic, count }) => {
     const max_results = count ? parseInt(count) : 5;
 
     const response = await fetch(
@@ -375,7 +375,7 @@ const robust_tool = new Tool('fetch_data', {
     endpoint: 'API endpoint path',
     method: 'HTTP method: GET or POST'
   },
-  func: async ({ endpoint, method }) => {
+  func: async (agent, { endpoint, method }) => {
     try {
       const response = await fetch(`https://api.example.com/${endpoint}`, {
         method: method.toUpperCase()
@@ -405,7 +405,7 @@ const robust_tool = new Tool('fetch_data', {
 
 ```typescript
 // ✅ Good: Structured JSON response
-func: async ({ query }) => {
+func: async (agent, { query }) => {
   const results = await search(query);
   return JSON.stringify({
     total: results.length,
@@ -415,7 +415,7 @@ func: async ({ query }) => {
 }
 
 // ❌ Bad: Unstructured string
-func: async ({ query }) => {
+func: async (agent, { query }) => {
   const results = await search(query);
   return `Found ${results.length} results: ${results.join(', ')}`;
 }
@@ -425,14 +425,14 @@ func: async ({ query }) => {
 
 ```typescript
 // ✅ Good: Proper async/await
-func: async ({ url }) => {
+func: async (agent, { url }) => {
   const response = await fetch(url);
   const data = await response.json();
   return JSON.stringify(data);
 }
 
 // ❌ Bad: Unhandled promises
-func: ({ url }) => {
+func: (agent, { url }) => {
   fetch(url).then(r => r.json()).then(d => JSON.stringify(d));
   // Returns undefined!
 }
@@ -449,7 +449,7 @@ const test_tool = new Tool('my_tool', {
   parameters: {
     input: 'Test input'
   },
-  func: async ({ input }) => {
+  func: async (agent, { input }) => {
     return `Processed: ${input}`;
   }
 });

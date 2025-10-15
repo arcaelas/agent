@@ -27,7 +27,7 @@ Tool has two constructor overloads for different use cases:
 ### Simple Tool
 
 ```typescript
-new Tool(name: string, handler: (input: string) => any)
+new Tool(name: string, handler: (agent: Agent, input: string) => any)
 ```
 
 Creates a tool with a single string input parameter.
@@ -42,18 +42,18 @@ Creates a tool with a single string input parameter.
 import { Tool } from '@arcaelas/agent';
 
 // Weather tool
-const weather_tool = new Tool('get_weather', (input: string) => {
+const weather_tool = new Tool('get_weather', (agent: Agent, input: string) => {
   // input: "What's the weather in Madrid?"
   return "Sunny, 24°C in Madrid";
 });
 
 // Time tool
-const time_tool = new Tool('get_time', () => {
+const time_tool = new Tool('get_time', (agent: Agent) => {
   return new Date().toLocaleString();
 });
 
 // File reader tool
-const read_file = new Tool('read_file', async (path: string) => {
+const read_file = new Tool('read_file', async (agent: Agent, path: string) => {
   const content = await fs.readFile(path, 'utf-8');
   return content;
 });
@@ -82,7 +82,7 @@ interface ToolOptions<T = Record<string, string>> {
   parameters?: T;
 
   /** Function to execute (sync or async) */
-  func(params: T): string | Promise<string>;
+  func(agent: Agent, params: T): string | Promise<string>;
 }
 ```
 
@@ -99,7 +99,7 @@ const search_tool = new Tool('search_database', {
     limit: 'Maximum results to return (default: 10)',
     category: 'Filter by category (optional)'
   },
-  func: async ({ query, limit, category }) => {
+  func: async (agent, { query, limit, category }) => {
     const results = await database.search({
       query,
       limit: parseInt(limit || '10'),
@@ -117,7 +117,7 @@ const calculator = new Tool('calculate', {
     a: 'First number',
     b: 'Second number'
   },
-  func: ({ operation, a, b }) => {
+  func: (agent, { operation, a, b }) => {
     const num_a = parseFloat(a);
     const num_b = parseFloat(b);
 
@@ -164,7 +164,7 @@ Human-readable description of what the tool does. For simple tools, defaults to 
 ```typescript
 const tool = new Tool('search', {
   description: 'Search through customer records',
-  func: () => "..."
+  func: (agent) => "..."
 });
 
 console.log(tool.description); // "Search through customer records"
@@ -182,7 +182,7 @@ Parameter schema describing expected inputs. Simple tools get `{ input: string }
 
 ```typescript
 // Simple tool parameters
-const simple = new Tool('greet', (input) => `Hello ${input}`);
+const simple = new Tool('greet', (agent, input) => `Hello ${input}`);
 console.log(simple.parameters); // { input: "Entrada para la herramienta" }
 
 // Advanced tool parameters
@@ -192,7 +192,7 @@ const advanced = new Tool('search', {
     query: 'Search term',
     limit: 'Max results'
   },
-  func: () => "..."
+  func: (agent) => "..."
 });
 
 console.log(advanced.parameters);
@@ -202,7 +202,7 @@ console.log(advanced.parameters);
 ### func
 
 ```typescript
-readonly func: (params: any) => any
+readonly func: (agent: Agent, params: any) => any
 ```
 
 The executable function. Can be sync or async.
@@ -210,12 +210,12 @@ The executable function. Can be sync or async.
 **Example:**
 
 ```typescript
-const tool = new Tool('process', (input) => {
+const tool = new Tool('process', (agent, input) => {
   return input.toUpperCase();
 });
 
-// Execute directly
-const result = tool.func({ input: "hello" });
+// Execute directly (passing agent instance)
+const result = tool.func(agent, { input: "hello" });
 console.log(result); // "HELLO"
 ```
 
@@ -245,7 +245,7 @@ const tool = new Tool('calculator', {
     a: 'First number',
     b: 'Second number'
   },
-  func: () => "..."
+  func: (agent) => "..."
 });
 
 // Automatic serialization
@@ -281,7 +281,7 @@ Returns human-readable string representation for debugging.
 ```typescript
 const tool = new Tool('weather', {
   description: 'Get current weather',
-  func: () => "..."
+  func: (agent) => "..."
 });
 
 console.log(tool.toString()); // "Tool(weather): Get current weather"
@@ -302,7 +302,7 @@ const github_search = new Tool('github_search', {
     language: 'Programming language filter (optional)',
     stars: 'Minimum stars (optional)'
   },
-  func: async ({ query, language, stars }) => {
+  func: async (agent, { query, language, stars }) => {
     const params = new URLSearchParams({ q: query });
     if (language) params.append('language', language);
     if (stars) params.append('stars', `>=${stars}`);
@@ -329,7 +329,7 @@ const create_user = new Tool('create_user', {
     name: 'User full name',
     role: 'User role (admin, user, guest)'
   },
-  func: async ({ email, name, role }) => {
+  func: async (agent, { email, name, role }) => {
     const user = await db.users.create({
       email,
       name,
@@ -344,7 +344,7 @@ const find_user = new Tool('find_user', {
   parameters: {
     email: 'Email address to search'
   },
-  func: async ({ email }) => {
+  func: async (agent, { email }) => {
     const user = await db.users.findOne({ email });
     return user ? JSON.stringify(user) : 'User not found';
   }
@@ -361,7 +361,7 @@ const analyze_text = new Tool('analyze_text', {
   parameters: {
     text: 'Text to analyze'
   },
-  func: async ({ text }) => {
+  func: async (agent, { text }) => {
     const sentiment = await nlp.sentiment(text);
     const keywords = await nlp.keywords(text, { limit: 5 });
 
@@ -378,7 +378,7 @@ const summarize = new Tool('summarize', {
     text: 'Text to summarize',
     max_length: 'Maximum summary length in words (default: 100)'
   },
-  func: async ({ text, max_length }) => {
+  func: async (agent, { text, max_length }) => {
     const summary = await nlp.summarize(text, {
       maxLength: parseInt(max_length || '100')
     });
@@ -397,7 +397,7 @@ const read_file = new Tool('read_file', {
   parameters: {
     path: 'File path to read'
   },
-  func: async ({ path }) => {
+  func: async (agent, { path }) => {
     try {
       const content = await fs.readFile(path, 'utf-8');
       return content;
@@ -413,7 +413,7 @@ const list_directory = new Tool('list_directory', {
     path: 'Directory path',
     pattern: 'File pattern to match (optional, e.g., *.js)'
   },
-  func: async ({ path, pattern }) => {
+  func: async (agent, { path, pattern }) => {
     const files = await fs.readdir(path);
     const filtered = pattern
       ? files.filter(f => minimatch(f, pattern))
@@ -434,7 +434,7 @@ const process_order = new Tool('process_order', {
     order_id: 'Order ID to process',
     notify_customer: 'Send notification email (true/false)'
   },
-  func: async ({ order_id, notify_customer }) => {
+  func: async (agent, { order_id, notify_customer }) => {
     // Validate order
     const order = await db.orders.findById(order_id);
     if (!order) return 'Order not found';
@@ -470,7 +470,7 @@ const safe_api_call = new Tool('api_call', {
     endpoint: 'API endpoint URL',
     method: 'HTTP method (GET, POST, etc.)'
   },
-  func: async ({ endpoint, method }) => {
+  func: async (agent, { endpoint, method }) => {
     try {
       const response = await fetch(endpoint, { method });
 
@@ -559,7 +559,7 @@ Return JSON for complex data:
 
 ```typescript
 // ✅ Good: Structured JSON response
-func: async ({ user_id }) => {
+func: async (agent, { user_id }) => {
   const user = await db.findUser(user_id);
   return JSON.stringify({
     id: user.id,
@@ -570,7 +570,7 @@ func: async ({ user_id }) => {
 }
 
 // ❌ Bad: Unstructured string
-func: async ({ user_id }) => {
+func: async (agent, { user_id }) => {
   const user = await db.findUser(user_id);
   return `User: ${user.name}, Email: ${user.email}`;
 }
@@ -584,7 +584,7 @@ Use async for operations involving I/O:
 // ✅ Good: Async for database/API calls
 const db_tool = new Tool('query_db', {
   description: 'Query database',
-  func: async ({ query }) => {
+  func: async (agent, { query }) => {
     const results = await db.query(query);
     return JSON.stringify(results);
   }
@@ -593,7 +593,7 @@ const db_tool = new Tool('query_db', {
 // ❌ Bad: Sync with blocking operations
 const bad_tool = new Tool('query_db', {
   description: 'Query database',
-  func: ({ query }) => {
+  func: (agent, { query }) => {
     const results = db.querySync(query);  // Blocks event loop
     return JSON.stringify(results);
   }
@@ -611,7 +611,7 @@ const validated_tool = new Tool('update_user', {
     user_id: 'User ID (numeric)',
     email: 'New email address'
   },
-  func: async ({ user_id, email }) => {
+  func: async (agent, { user_id, email }) => {
     // Validate user_id
     const id = parseInt(user_id);
     if (isNaN(id) || id <= 0) {
@@ -652,7 +652,7 @@ const search_tool = new Tool<SearchParams>('search', {
     limit: 'Max results',
     category: 'Category filter'
   },
-  func: ({ query, limit, category }) => {
+  func: (agent, { query, limit, category }) => {
     // TypeScript knows the parameter types
     const num_limit = parseInt(limit);
     return database.search(query, num_limit, category);
@@ -666,7 +666,7 @@ const inferred = new Tool('inferred', {
     foo: 'Foo param',
     bar: 'Bar param'
   },
-  func: ({ foo, bar }) => {
+  func: (agent, { foo, bar }) => {
     // TypeScript infers foo and bar as strings
     return `${foo} ${bar}`;
   }
@@ -688,7 +688,7 @@ describe('calculator_tool', () => {
       a: 'First number',
       b: 'Second number'
     },
-    func: ({ operation, a, b }) => {
+    func: (agent, { operation, a, b }) => {
       const num_a = parseFloat(a);
       const num_b = parseFloat(b);
 
@@ -701,17 +701,17 @@ describe('calculator_tool', () => {
   });
 
   test('addition', () => {
-    const result = calculator.func({ operation: '+', a: '5', b: '3' });
+    const result = calculator.func(agent, { operation: '+', a: '5', b: '3' });
     expect(result).toBe('8');
   });
 
   test('subtraction', () => {
-    const result = calculator.func({ operation: '-', a: '10', b: '4' });
+    const result = calculator.func(agent, { operation: '-', a: '10', b: '4' });
     expect(result).toBe('6');
   });
 
   test('invalid operation', () => {
-    const result = calculator.func({ operation: '%', a: '5', b: '2' });
+    const result = calculator.func(agent, { operation: '%', a: '5', b: '2' });
     expect(result).toBe('Invalid operation');
   });
 });
