@@ -27,6 +27,7 @@
  * // Respuesta: "12/27/2024, 10:30:45 AM"
  * ```
  */
+import Agent from "~/static/agent";
 import Tool from "~/static/tool";
 
 /**
@@ -93,7 +94,7 @@ export default class TimeTool extends Tool {
         time_zone:
           "Opcional - Zona horaria IANA para obtener la hora (ej: Europe/Madrid). Si no se proporciona, usa la zona horaria del sistema",
       },
-      func: (args: { time_zone: string }) => {
+      func: (ctx: Agent, args: { time_zone: string }) => {
         args.time_zone ||=
           options.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         return new Date().toLocaleString("en-US", { timeZone: args.time_zone });

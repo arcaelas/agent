@@ -49,6 +49,7 @@
  * });
  * ```
  */
+import Agent from "~/static/agent";
 import Tool, { ToolOptions } from "~/static/tool";
 
 /**
@@ -215,7 +216,7 @@ export default class RemoteTool extends Tool {
   constructor(name: string, options: RemoteToolOptions) {
     super(name, {
       ...options,
-      func: async (args: Record<string, any>) => {
+      func: async (ctx: Agent, args: Record<string, any>) => {
         return await fetch(options.http.url, {
           method: options.http.method,
           headers: options.http.headers,
