@@ -110,7 +110,9 @@ export type SimpleToolHandler = (
  * console.log(product_search.description); // 'Buscar productos...'
  * ```
  */
-export default class Tool<T = Record<string, string>> {
+export default class Tool<
+  T extends Record<string, string> = Record<string, string>
+> {
   /**
    * @description
    * Nombre único de la herramienta.
@@ -230,13 +232,20 @@ export default class Tool<T = Record<string, string>> {
       properties: T | { input: string };
     };
   } {
+    const parameters = {};
+    for (const k in this.parameters!) {
+      parameters[k] = {
+        type: "string",
+        description: this.parameters[k],
+      };
+    }
     return {
       type: "function",
       name: this.name,
       description: this.description,
       parameters: {
         type: "object",
-        properties: this.parameters,
+        properties: parameters as any,
       },
     };
   }
