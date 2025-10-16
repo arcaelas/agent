@@ -41,7 +41,7 @@
  */
 
 import Context from "./context";
-import Message, { MessageOptions } from "./message";
+import Message, { MessageOptions, ToolCall } from "./message";
 import Metadata from "./metadata";
 import Rule from "./rule";
 import Tool from "./tool";
@@ -100,14 +100,7 @@ export interface ResponseMessage {
    * @description
    * Información sobre llamadas a herramientas (si aplica).
    */
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: {
-      name: string;
-      arguments: string;
-    };
-  }> | null;
+  tool_calls?: ToolCall[] | null;
 
   /**
    * @description
@@ -668,7 +661,6 @@ export default class Agent {
       new Message({
         role: "user",
         content: prompt,
-        tool_id: undefined as never,
       })
     );
     const PROVIDERS: Provider[] = [...this._providers];
@@ -693,6 +685,17 @@ export default class Agent {
           }
           if ((choice.message.tool_calls ?? []).length) {
             success = false;
+
+            // Añadir mensaje assistant con tool_calls al historial
+            this._context.messages = this._context.messages.concat(
+              new Message({
+                role: "assistant",
+                content: null,
+                tool_calls: choice.message.tool_calls ?? undefined,
+              })
+            );
+
+            // Ejecutar todas las herramientas en paralelo
             const _calls = await Promise.all(
               (choice.message.tool_calls ?? []).map(
                 async (c): Promise<MessageOptions> => {
@@ -701,33 +704,54 @@ export default class Agent {
                     if (!T) {
                       return {
                         role: "tool",
-                        tool_id: c.id,
+                        tool_call_id: c.id,
                         content: "Tool not found",
                       };
-                    } else {
-                      return {
-                        role: "tool",
-                        tool_id: c.id,
-                        content: JSON.stringify(
-                          await T.func(
-                            this,
-                            c.function.arguments
-                              ? JSON.parse(c.function.arguments)
-                              : {}
-                          )
-                        ),
-                      };
                     }
+
+                    const result = await T.func(
+                      this,
+                      c.function.arguments
+                        ? JSON.parse(c.function.arguments)
+                        : {}
+                    );
+
+                    // Serialización segura que maneja valores especiales
+                    let content: string;
+
+                    // Verificar casos especiales antes de JSON.stringify
+                    if (result === undefined) {
+                      content = "undefined";
+                    } else if (typeof result === "function") {
+                      content = "[Function]";
+                    } else if (typeof result === "bigint") {
+                      content = (result as bigint).toString();
+                    } else {
+                      try {
+                        content = JSON.stringify(result);
+                      } catch {
+                        // Manejar errores de serialización (ej: referencias circulares)
+                        content = String(result);
+                      }
+                    }
+
+                    return {
+                      role: "tool",
+                      tool_call_id: c.id,
+                      content,
+                    };
                   } catch (error: any) {
                     return {
                       role: "tool",
-                      tool_id: c.id,
-                      content: error.message,
+                      tool_call_id: c.id,
+                      content: error.message ?? String(error),
                     };
                   }
                 }
               )
             );
+
+            // Añadir resultados de las herramientas al historial
             this._context.messages = this._context.messages.concat(
               _calls.map((c) => new Message(c))
             );
