@@ -55,13 +55,13 @@ export interface ToolOptions<T = Record<string, string>> {
   /**
    * @description
    * Función que se ejecuta cuando la herramienta es llamada.
-   * Debe retornar un valor que pueda ser serializado como string.
+   * Puede retornar cualquier valor serializable.
    * Puede ser síncrona o asíncrona.
    */
   func(
     agent: Agent,
     params: T extends object ? T : { input: string }
-  ): string | Promise<string>;
+  ): any;
 }
 
 /**
@@ -71,7 +71,7 @@ export interface ToolOptions<T = Record<string, string>> {
 export type SimpleToolHandler = (
   agent: Agent,
   input: string
-) => string | Promise<string>;
+) => any;
 
 /**
  * @description
@@ -138,7 +138,7 @@ export default class Tool<
   readonly func: (
     agent: Agent,
     params: T extends object ? T : { input: string }
-  ) => string | Promise<string>;
+  ) => any;
 
   /**
    * @description
