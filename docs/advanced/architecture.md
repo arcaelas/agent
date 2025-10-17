@@ -239,7 +239,7 @@ TypeScript discriminated unions for type-safe message handling:
 type Message =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string }
-  | { role: 'tool'; tool_id: string; content: string }
+  | { role: 'tool'; tool_call_id: string; content: string }
   | { role: 'system'; content: string }
 ```
 

@@ -15,7 +15,7 @@ Messages are the building blocks of conversations, categorized by role:
 
 - ✅ Type-safe role discrimination
 - ✅ Automatic timestamp tracking
-- ✅ Required `tool_id` for tool messages
+- ✅ Required `tool_call_id` for tool messages
 - ✅ JSON serialization support
 - ✅ Built-in validation
 
@@ -32,12 +32,14 @@ Creates a new message with role-specific options.
 ```typescript
 type MessageOptions =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string }
+  | { role: "assistant"; content: string | null }
   | { role: "system"; content: string }
-  | { role: "tool"; content: string; tool_id: string };
+  | { role: "tool"; content: string; tool_call_id: string };
 ```
 
-TypeScript enforces that tool messages must include `tool_id`.
+TypeScript enforces that:
+- Tool messages must include `tool_call_id`
+- Assistant messages can have `null` content when they include tool_calls (function calling)
 
 ### Examples
 
@@ -67,7 +69,7 @@ const assistant_message = new Message({
 const tool_message = new Message({
   role: "tool",
   content: JSON.stringify({ temperature: 24, condition: "sunny" }),
-  tool_id: "weather_query_12345"
+  tool_call_id: "weather_query_12345"
 });
 ```
 
@@ -106,10 +108,10 @@ console.log(message.role); // "user"
 ### content
 
 ```typescript
-readonly content: string
+readonly content: string | null
 ```
 
-The textual content of the message.
+The textual content of the message. Can be `null` for assistant messages that include tool_calls (when the AI decides to use a function instead of responding with text).
 
 **Example:**
 
@@ -120,12 +122,20 @@ const message = new Message({
 });
 
 console.log(message.content); // "I'm here to help you today!"
+
+// Assistant message with null content (during tool calling)
+const tool_calling_message = new Message({
+  role: "assistant",
+  content: null
+});
+
+console.log(tool_calling_message.content); // null
 ```
 
-### tool_id
+### tool_call_id
 
 ```typescript
-readonly tool_id: string | undefined
+readonly tool_call_id: string | undefined
 ```
 
 Unique identifier for tool messages. Only defined when `role === "tool"`.
@@ -136,13 +146,13 @@ Unique identifier for tool messages. Only defined when `role === "tool"`.
 const tool_msg = new Message({
   role: "tool",
   content: "Result data",
-  tool_id: "calculation_001"
+  tool_call_id: "calculation_001"
 });
 
-console.log(tool_msg.tool_id); // "calculation_001"
+console.log(tool_msg.tool_call_id); // "calculation_001"
 
 const user_msg = new Message({ role: "user", content: "Hi" });
-console.log(user_msg.tool_id); // undefined
+console.log(user_msg.tool_call_id); // undefined
 ```
 
 ### timestamp
@@ -184,7 +194,7 @@ console.log(message.length); // 11
 toJSON(): {
   role: MessageRole;
   content: string;
-  tool_id?: string;
+  tool_call_id?: string;
   timestamp: string;
 }
 ```
@@ -209,18 +219,18 @@ console.log(json);
 //   "timestamp": "2025-10-12T10:30:45.123Z"
 // }
 
-// Tool message with tool_id
+// Tool message with tool_call_id
 const tool_msg = new Message({
   role: "tool",
   content: "Data",
-  tool_id: "calc_123"
+  tool_call_id: "calc_123"
 });
 
 console.log(tool_msg.toJSON());
 // {
 //   role: "tool",
 //   content: "Data",
-//   tool_id: "calc_123",
+//   tool_call_id: "calc_123",
 //   timestamp: "..."
 // }
 ```
@@ -233,7 +243,7 @@ toString(): string
 
 Returns human-readable string representation. Long content is truncated to 50 characters.
 
-**Returns:** String in format `"Message(role) [tool_id]: content"`
+**Returns:** String in format `"Message(role) [tool_call_id]: content"`
 
 **Example:**
 
@@ -249,7 +259,7 @@ console.log(message.toString());
 const tool_msg = new Message({
   role: "tool",
   content: "Result data here",
-  tool_id: "weather_001"
+  tool_call_id: "weather_001"
 });
 
 console.log(tool_msg.toString());
@@ -294,6 +304,37 @@ const conversation: Message[] = [
 agent.messages = conversation;
 ```
 
+### Pattern: Assistant Messages with Tool Calls
+
+When assistant decides to call a tool, content can be null:
+
+```typescript
+// User asks for information
+const user_msg = new Message({
+  role: "user",
+  content: "What's the weather in Madrid?"
+});
+
+// Assistant decides to call weather tool (content is null during tool calling)
+const assistant_tool_call = new Message({
+  role: "assistant",
+  content: null  // No text response, calling tool instead
+});
+
+// Tool returns result
+const tool_result = new Message({
+  role: "tool",
+  content: JSON.stringify({ temperature: 24, condition: "sunny" }),
+  tool_call_id: "weather_call_001"
+});
+
+// Assistant responds with tool result
+const assistant_response = new Message({
+  role: "assistant",
+  content: "It's sunny in Madrid with a temperature of 24°C!"
+});
+```
+
 ### Pattern: Tool Result Messages
 
 Handle tool execution results:
@@ -312,7 +353,7 @@ const tool_result = new Message({
     { id: 1, name: "John Smith", email: "john@example.com" },
     { id: 2, name: "John Doe", email: "jdoe@example.com" }
   ]),
-  tool_id: "search_customers_001"
+  tool_call_id: "search_customers_001"
 });
 
 const assistant_response = new Message({
@@ -400,13 +441,13 @@ Messages are validated during construction:
 ```typescript
 // ✅ Valid messages
 new Message({ role: "user", content: "Hello" });
-new Message({ role: "tool", content: "Data", tool_id: "123" });
+new Message({ role: "tool", content: "Data", tool_call_id: "123" });
 
-// ❌ Invalid - missing tool_id for tool message
+// ❌ Invalid - missing tool_call_id for tool message
 try {
   new Message({ role: "tool", content: "Data" } as any);
 } catch (error) {
-  console.error(error); // "Los mensajes de herramienta requieren un tool_id"
+  console.error(error); // "Los mensajes de herramienta requieren un tool_call_id"
 }
 
 // ❌ Invalid - missing content
@@ -435,7 +476,7 @@ Choose the correct role for each message:
 new Message({ role: "user", content: "User question" });
 new Message({ role: "assistant", content: "AI response" });
 new Message({ role: "system", content: "Behavior instructions" });
-new Message({ role: "tool", content: "Tool output", tool_id: "tool_1" });
+new Message({ role: "tool", content: "Tool output", tool_call_id: "tool_1" });
 
 // ❌ Bad: Using wrong roles
 new Message({ role: "assistant", content: "This is from the user" });  // Wrong
@@ -443,14 +484,14 @@ new Message({ role: "assistant", content: "This is from the user" });  // Wrong
 
 ### 2. Include Tool IDs
 
-Always provide tool_id for tool messages:
+Always provide tool_call_id for tool messages:
 
 ```typescript
 // ✅ Good: Tool message with ID
 new Message({
   role: "tool",
   content: JSON.stringify({ result: "data" }),
-  tool_id: "search_customers_12345"
+  tool_call_id: "search_customers_12345"
 });
 
 // TypeScript prevents this at compile time:
@@ -470,14 +511,14 @@ new Message({
     results: [{ id: 1, name: "Item" }],
     count: 1
   }),
-  tool_id: "search_001"
+  tool_call_id: "search_001"
 });
 
 // ❌ Bad: Unstructured string
 new Message({
   role: "tool",
   content: "Found 1 item: Item",
-  tool_id: "search_001"
+  tool_call_id: "search_001"
 });
 ```
 
@@ -520,17 +561,17 @@ const message: Message = new Message({
 // Role is strictly typed
 const role: MessageRole = message.role;  // ✅ "user" | "assistant" | "tool" | "system"
 
-// Type checking enforces tool_id for tool messages
+// Type checking enforces tool_call_id for tool messages
 const tool_msg: Message = new Message({
   role: "tool",
   content: "data",
-  tool_id: "required"  // ✅ TypeScript enforces this
+  tool_call_id: "required"  // ✅ TypeScript enforces this
 });
 
 // Discriminated union allows type narrowing
 function handleMessage(msg: Message) {
   if (msg.role === "tool") {
-    console.log(msg.tool_id);  // ✅ TypeScript knows tool_id exists here
+    console.log(msg.tool_call_id);  // ✅ TypeScript knows tool_call_id exists here
   }
 }
 ```

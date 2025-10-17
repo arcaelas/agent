@@ -95,15 +95,15 @@ const supervisor = new Agent({
   name: "Supervisor",
   description: "Coordinates specialized agents for complex tasks",
   tools: [
-    new Tool('delegate_to_researcher', async ({ query }) => {
+    new Tool('delegate_to_researcher', async (agent, { query }) => {
       const [msgs, ok] = await research_agent.call(query);
       return ok ? msgs[msgs.length - 1].content : "Research failed";
     }),
-    new Tool('delegate_to_analyst', async ({ data }) => {
+    new Tool('delegate_to_analyst', async (agent, { data }) => {
       const [msgs, ok] = await analyzer_agent.call(data);
       return ok ? msgs[msgs.length - 1].content : "Analysis failed";
     }),
-    new Tool('delegate_to_writer', async ({ content }) => {
+    new Tool('delegate_to_writer', async (agent, { content }) => {
       const [msgs, ok] = await writer_agent.call(content);
       return ok ? msgs[msgs.length - 1].content : "Writing failed";
     })
@@ -213,28 +213,28 @@ await system.trigger('system_alert', { message: 'High memory usage detected' });
 Combine simple tools into complex workflows:
 
 ```typescript
-const fetch_tool = new Tool('fetch_url', async ({ url }) => {
+const fetch_tool = new Tool('fetch_url', async (agent, { url }) => {
   const response = await fetch(url);
   return await response.text();
 });
 
-const parse_tool = new Tool('parse_html', async ({ html }) => {
+const parse_tool = new Tool('parse_html', async (agent, { html }) => {
   // Parse HTML and extract structured data
   return JSON.stringify({ title: "...", content: "..." });
 });
 
-const summarize_tool = new Tool('summarize_text', async ({ text }) => {
+const summarize_tool = new Tool('summarize_text', async (agent, { text }) => {
   // Use another agent for summarization
   const [msgs, ok] = await summary_agent.call(`Summarize: ${text}`);
   return ok ? msgs[msgs.length - 1].content : "Failed to summarize";
 });
 
 // Complex tool that combines others
-const web_research_tool = new Tool('research_url', async ({ url }) => {
+const web_research_tool = new Tool('research_url', async (agent, { url }) => {
   // Fetch → Parse → Summarize
-  const html = await fetch_tool.func({ url });
-  const data = await parse_tool.func({ html });
-  const summary = await summarize_tool.func({ text: data });
+  const html = await fetch_tool.func(agent, { url });
+  const data = await parse_tool.func(agent, { html });
+  const summary = await summarize_tool.func(agent, { text: data });
   return summary;
 });
 

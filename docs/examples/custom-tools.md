@@ -227,7 +227,7 @@ const openai_provider = async (ctx) => {
     messages: ctx.messages.map(m => ({
       role: m.role === 'tool' ? 'tool' : m.role,
       content: m.content || '',
-      ...(m.role === 'tool' && { tool_call_id: m.tool_id })
+      ...(m.role === 'tool' && { tool_call_id: m.tool_call_id })
     })),
     tools: ctx.tools.map(tool => ({
       type: "function",
