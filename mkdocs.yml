@@ -11,6 +11,7 @@ copyright: Copyright &copy; 2025 Arcaelas Insiders
 
 theme:
   name: material
+  custom_dir: overrides
   language: en
   palette:
     # Light mode
