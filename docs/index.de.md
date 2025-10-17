@@ -75,7 +75,7 @@ Hierarchische Zustandsverwaltung mit automatischer Vererbung.
 ```typescript
 const parent_context = new Context({
   metadata: new Metadata().set("company", "Acme Corp"),
-  rules: [new Rule("Professionellen Ton beibehalten")]
+  rules: [new Rule("Einen professionellen Ton beibehalten")]
 });
 
 const child_context = new Context({
@@ -97,7 +97,7 @@ const weather_tool = new Tool("get_weather", {
     city: "Stadtname",
     units: "Temperatureinheiten (celsius/fahrenheit)"
   },
-  func: async ({ city, units }) => {
+  func: async (agent, { city, units }) => {
     return `Wetter in ${city}: Sonnig, 24°C`;
   }
 });

@@ -204,16 +204,16 @@ import { Tool } from '@arcaelas/agent';
 
 const base_ctx = new Context({
   tools: [
-    new Tool("search", async () => "base search"),
-    new Tool("analyze", async () => "base analyze")
+    new Tool("search", async (agent) => "base search"),
+    new Tool("analyze", async (agent) => "base analyze")
   ]
 });
 
 const enhanced_ctx = new Context({
   context: base_ctx,
   tools: [
-    new Tool("search", async () => "enhanced search"),  // Overrides parent
-    new Tool("translate", async () => "translation")     // New tool
+    new Tool("search", async (agent) => "enhanced search"),  // Overrides parent
+    new Tool("translate", async (agent) => "translation")     // New tool
   ]
 });
 
@@ -282,7 +282,7 @@ Understanding how properties are inherited:
 const parent = new Context({
   metadata: new Metadata().set("a", 1).set("b", 2),
   rules: [new Rule("R1")],
-  tools: [new Tool("T1", async () => "parent")],
+  tools: [new Tool("T1", async (agent) => "parent")],
   messages: [new Message({ role: "system", content: "M1" })]
 });
 
@@ -290,7 +290,7 @@ const child = new Context({
   context: parent,
   metadata: new Metadata().set("b", 3).set("c", 4),  // 'b' overrides
   rules: [new Rule("R2")],                             // Adds to R1
-  tools: [new Tool("T1", async () => "child")],       // Replaces T1
+  tools: [new Tool("T1", async (agent) => "child")],       // Replaces T1
   messages: [new Message({ role: "user", content: "M2" })]  // Adds to M1
 });
 
@@ -480,7 +480,7 @@ import { Context, ContextOptions, Metadata, Rule, Tool, Message } from '@arcaela
 const ctx = new Context({
   metadata: new Metadata(),  // Type: Metadata
   rules: [new Rule("...")],  // Type: Rule[]
-  tools: [new Tool("...", async () => "")],  // Type: Tool[]
+  tools: [new Tool("...", async (agent) => "")],  // Type: Tool[]
   messages: [new Message({ role: "user", content: "..." })]  // Type: Message[]
 });
 

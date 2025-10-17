@@ -97,7 +97,7 @@ const weather_tool = new Tool("get_weather", {
     city: "City name",
     units: "Temperature units (celsius/fahrenheit)"
   },
-  func: async ({ city, units }) => {
+  func: async (agent, { city, units }) => {
     return `Weather in ${city}: Sunny, 24°C`;
   }
 });

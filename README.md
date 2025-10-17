@@ -698,13 +698,13 @@ type MessageOptions =
   | { role: "user"; content: string; }
   | { role: "assistant"; content: string; }
   | { role: "system"; content: string; }
-  | { role: "tool"; content: string; tool_id: string; };
+  | { role: "tool"; content: string; tool_call_id: string; };
 ```
 
 ### Properties
 - `readonly role: MessageRole` - Message role
 - `readonly content: string` - Message content
-- `readonly tool_id?: string` - Tool ID (for tool messages)
+- `readonly tool_call_id?: string` - Tool ID (for tool messages)
 - `readonly timestamp: Date` - Creation timestamp
 - `readonly length: number` - Content length
 
@@ -718,7 +718,7 @@ const user_msg = new Message({
 const tool_msg = new Message({
   role: "tool",
   content: "Sunny, 22°C",
-  tool_id: "weather_123"
+  tool_call_id: "weather_123"
 });
 
 console.log(user_msg.timestamp); // Date object
@@ -1242,7 +1242,7 @@ import { Agent, Tool } from '../src';
 
 describe('Agent Core Functionality', () => {
   test('should create agent with tools', async () => {
-    const test_tool = new Tool("test", async () => "test result");
+    const test_tool = new Tool("test", async (agent) => "test result");
     const agent = new Agent({
       name: "Test_Agent",
       description: "Test agent",
@@ -1351,7 +1351,7 @@ Help others and improve the ecosystem:
 
 ### Recent Releases
 
-#### v1.0.15 (Current)
+#### v1.0.22 (Current)
 - ✨ **New**: Enhanced provider function typing with better error handling
 - 🔧 **Improved**: Context inheritance performance optimization
 - 📝 **Documentation**: Complete README restructure with examples

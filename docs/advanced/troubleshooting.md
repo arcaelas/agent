@@ -33,7 +33,7 @@ if (!success) {
 const robust_tool = new Tool('my_tool', {
   description: "Tool with error handling",
   parameters: { input: "Input value" },
-  func: async ({ input }) => {
+  func: async (agent, { input }) => {
     try {
       return await process(input);
     } catch (error) {
