@@ -70,7 +70,7 @@ const openai_provider: Provider = async (agent) => {
     messages: agent.messages.map(m => ({
       role: m.role,
       content: m.content,
-      ...(m.tool_id && { tool_call_id: m.tool_id })
+      ...(m.tool_call_id && { tool_call_id: m.tool_call_id })
     })),
     tools: agent.tools?.map(tool => ({
       type: "function",

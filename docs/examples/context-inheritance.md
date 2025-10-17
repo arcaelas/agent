@@ -127,12 +127,12 @@ Tools with the same name are automatically deduplicated, with local tools taking
 
 ```typescript
 const parent_tools = [
-  new Tool('search', () => "Parent search implementation")
+  new Tool('search', (agent) => "Parent search implementation")
 ];
 
 const child_tools = [
-  new Tool('search', () => "Child search implementation (enhanced)"),
-  new Tool('analyze', () => "Analysis tool")
+  new Tool('search', (agent) => "Child search implementation (enhanced)"),
+  new Tool('analyze', (agent) => "Analysis tool")
 ];
 
 const parent_ctx = new Context({ tools: parent_tools });

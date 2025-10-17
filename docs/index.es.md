@@ -75,7 +75,7 @@ Gestión jerárquica de estado con herencia automática.
 ```typescript
 const parent_context = new Context({
   metadata: new Metadata().set("company", "Acme Corp"),
-  rules: [new Rule("Mantener tono profesional")]
+  rules: [new Rule("Mantener un tono profesional")]
 });
 
 const child_context = new Context({
@@ -97,7 +97,7 @@ const weather_tool = new Tool("get_weather", {
     city: "Nombre de la ciudad",
     units: "Unidades de temperatura (celsius/fahrenheit)"
   },
-  func: async ({ city, units }) => {
+  func: async (agent, { city, units }) => {
     return `Clima en ${city}: Soleado, 24°C`;
   }
 });

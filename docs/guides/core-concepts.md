@@ -177,7 +177,7 @@ const user_msg = new Message({
 
 const tool_msg = new Message({
   role: "tool",
-  tool_id: "weather_123",
+  tool_call_id: "weather_123",
   content: "Sunny, 22°C"
 });
 ```

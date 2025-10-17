@@ -87,7 +87,8 @@ await agent.call("What's the weather in Madrid?");
 
 ### Behavior Notes
 
-- Parameters are sent as JSON in request body (for ALL methods including GET)
+- **GET/DELETE**: Parameters are sent as URL query string (e.g., `?city=Madrid&units=celsius`)
+- **POST/PUT/PATCH**: Parameters are sent as JSON in request body
 - Returns response as plain text
 - Automatic error handling by agent
 - Headers support dynamic values from environment variables
