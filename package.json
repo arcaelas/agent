@@ -50,5 +50,5 @@
     "deploy": "npm publish --access=public",
     "postpublish": "find src -type f -name '*.js' -o -name '*.d.ts' -o -name '*.map' | xargs rm -f"
   },
-  "version": "1.0.24"
+  "version": "1.0.25"
 }
