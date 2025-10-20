@@ -58,20 +58,14 @@ export interface ToolOptions<T = Record<string, string>> {
    * Puede retornar cualquier valor serializable.
    * Puede ser síncrona o asíncrona.
    */
-  func(
-    agent: Agent,
-    params: T extends object ? T : { input: string }
-  ): any;
+  func(agent: Agent, params: T extends object ? T : { input: string }): any;
 }
 
 /**
  * @description
  * Función simple para herramientas básicas.
  */
-export type SimpleToolHandler = (
-  agent: Agent,
-  input: string
-) => any;
+export type SimpleToolHandler = (agent: Agent, input: string) => any;
 
 /**
  * @description
@@ -110,9 +104,7 @@ export type SimpleToolHandler = (
  * console.log(product_search.description); // 'Buscar productos...'
  * ```
  */
-export default class Tool<
-  T extends Record<string, string> = Record<string, string>
-> {
+export default class Tool<T = any> {
   /**
    * @description
    * Nombre único de la herramienta.
