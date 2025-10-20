@@ -472,3 +472,123 @@ export { default as RemoteTool } from "./tools/RemoteTool";
  * ```
  */
 export { default as TimeTool } from "./tools/Time";
+
+/* ================================================================================================
+ * EXPORTACIONES DE PROVIDERS
+ * ================================================================================================ */
+
+/**
+ * @description
+ * Provider para OpenAI compatible con ChatCompletion API.
+ *
+ * OpenAI permite configurar agentes con modelos de OpenAI
+ * como GPT-4, GPT-4 Turbo y GPT-3.5 Turbo. Soporta tool calling, streaming
+ * y todas las características estándar de OpenAI API.
+ *
+ * @example
+ * ```typescript
+ * import { OpenAI, Agent } from '@arcaelas/agent';
+ *
+ * const openai = new OpenAI({
+ *   api_key: process.env.OPENAI_API_KEY!,
+ *   model: "gpt-4-turbo-preview",
+ *   temperature: 0.7,
+ *   max_tokens: 2000
+ * });
+ *
+ * const agent = new Agent({
+ *   name: "GPT_Assistant",
+ *   description: "AI powered by OpenAI",
+ *   providers: [openai]
+ * });
+ * ```
+ */
+export { default as OpenAI } from "./providers/openai";
+export type { OpenAIProviderOptions } from "./providers/openai";
+
+/**
+ * @description
+ * Provider para Groq compatible con ChatCompletion API.
+ *
+ * Groq permite configurar agentes con modelos ultra-rápidos
+ * de Groq incluyendo Llama 3.1, Mixtral y Gemma. Ofrece compatibilidad
+ * completa con OpenAI API y velocidades de inferencia extremadamente altas.
+ *
+ * @example
+ * ```typescript
+ * import { Groq, Agent } from '@arcaelas/agent';
+ *
+ * const groq = new Groq({
+ *   api_key: process.env.GROQ_API_KEY!,
+ *   model: "llama-3.1-70b-versatile",
+ *   temperature: 0.5,
+ *   max_tokens: 8000
+ * });
+ *
+ * const agent = new Agent({
+ *   name: "Fast_Assistant",
+ *   description: "Ultra-fast AI powered by Groq",
+ *   providers: [groq]
+ * });
+ * ```
+ */
+export { default as Groq } from "./providers/groq";
+export type { GroqProviderOptions } from "./providers/groq";
+
+/**
+ * @description
+ * Provider para Claude (Anthropic) con transformación automática de formato.
+ *
+ * Claude permite configurar agentes con modelos de Anthropic
+ * incluyendo Claude 3.5 Sonnet, Claude 3 Opus y Claude 3 Haiku. Transforma
+ * automáticamente mensajes y herramientas entre el formato de OpenAI y Claude.
+ *
+ * @example
+ * ```typescript
+ * import { Claude, Agent } from '@arcaelas/agent';
+ *
+ * const claude = new Claude({
+ *   api_key: process.env.ANTHROPIC_API_KEY!,
+ *   model: "claude-3-5-sonnet-20241022",
+ *   temperature: 0.7,
+ *   max_tokens: 4096
+ * });
+ *
+ * const agent = new Agent({
+ *   name: "Claude_Assistant",
+ *   description: "AI powered by Anthropic Claude",
+ *   providers: [claude]
+ * });
+ * ```
+ */
+export { default as Claude } from "./providers/claude";
+export type { ClaudeProviderOptions } from "./providers/claude";
+
+/**
+ * @description
+ * Provider para DeepSeek compatible con ChatCompletion API.
+ *
+ * DeepSeek permite configurar agentes con modelos de DeepSeek
+ * especializados en razonamiento avanzado y generación de código. Ofrece
+ * compatibilidad completa con OpenAI API.
+ *
+ * @example
+ * ```typescript
+ * import { DeepSeek, Agent } from '@arcaelas/agent';
+ *
+ * const deepseek = new DeepSeek({
+ *   api_key: process.env.DEEPSEEK_API_KEY!,
+ *   model: "deepseek-chat",
+ *   temperature: 0.3,
+ *   max_tokens: 4000
+ * });
+ *
+ * const agent = new Agent({
+ *   name: "Code_Assistant",
+ *   description: "AI specialized in coding powered by DeepSeek",
+ *   providers: [deepseek]
+ * });
+ * ```
+ */
+export { default as DeepSeek } from "./providers/deepseek";
+export type { DeepSeekProviderOptions } from "./providers/deepseek";
