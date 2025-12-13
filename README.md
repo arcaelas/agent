@@ -54,8 +54,11 @@ const assistant = new Agent({
 });
 
 // Add a simple tool to the agent
-assistant.tool("get_date", async () => {
-  return new Date().toLocaleString();
+assistant.tool("get_date", {
+  description: "Get current date and time",
+  func: async () => {
+    return new Date().toLocaleString();
+  },
 });
 
 // Start a conversation
@@ -164,9 +167,8 @@ Main class to create and manage agents.
 
 #### Methods
 
-- `tool(name: string, options: ToolOptions<T>): () => void`: Adds a tool with complex parameters.
-- `tool(desc: string, func: Noop<[input: string], string>): () => void`: Adds a simple tool.
-- `answer(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]>`: Processes the conversation and returns the updated history.
+- `tool(name: string, options: ToolOptions<T>): () => void`: Adds a tool with complex parameters and specific schema.
+- `answer(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]>`: Processes the conversation and returns the updated history. Handles up to 6 iterations to resolve tool calls automatically.
 
 ### Interfaces
 
@@ -185,9 +187,9 @@ Main class to create and manage agents.
 
 #### `ToolOptions<T>`
 
-- `description: string`: Tool description.
-- `parameters?: T`: Parameters accepted by the tool.
-- `func: Noop<[params: T extends object ? T : { input: string }], string>`: Function to execute.
+- `description: string`: Tool description that explains what the tool does.
+- `parameters?: T`: Object where each key is a parameter name and each value is a description of that parameter.
+- `func: Noop<[params: T extends object ? T : { input: string }], string>`: Function to execute when the tool is called. Must return a string.
 
 ## Recommendations & Best Practices
 
@@ -201,9 +203,62 @@ Main class to create and manage agents.
 
 5. **Clear limits**: Use the `limits` parameter to set rules on what the agent can or cannot do/say.
 
-6. **Conversation cycles**: The `answer()` method handles up to 6 internal steps to resolve tools, but avoid excessive nesting.
+6. **Conversation cycles**: The `answer()` method handles up to 6 internal iterations to resolve tool calls automatically. Each iteration can process multiple tool calls in sequence.
 
-7. **API security**: Never hardcode API keys; use environment variables instead.
+7. **Tool function returns**: All tool functions must return strings. If you need to return complex data, use `JSON.stringify()`.
+
+8. **Error handling**: Tool functions should handle their own errors gracefully and return descriptive error messages as strings.
+
+9. **Provider fallback**: The agent automatically tries different providers if one fails, ensuring better reliability.
+
+10. **API security**: Never hardcode API keys; use environment variables instead.
+
+## Advanced Features
+
+### Tool Function Signatures
+
+The library supports two ways to add tools:
+
+```typescript
+// Method 1: With explicit parameters schema
+agent.tool("tool_name", {
+  description: "What this tool does",
+  parameters: {
+    param1: "Description of parameter 1",
+    param2: "Description of parameter 2 (optional)",
+  },
+  func: async (params) => {
+    // params.param1 and params.param2 are available
+    return "string result";
+  },
+});
+
+// Method 2: Simple description-only (gets random name)
+agent.tool("Tool description", {
+  description: "What this tool does",
+  func: async (params) => {
+    // params.input contains user input
+    return "string result";
+  },
+});
+```
+
+### Error Handling
+
+The agent handles various error scenarios automatically:
+
+- **Provider failures**: Automatically switches to backup providers
+- **Tool not found**: Returns error message to conversation
+- **JSON parsing errors**: Handles malformed tool arguments
+- **Tool execution errors**: Catches exceptions and returns error messages
+- **Empty responses**: Handles cases where providers return no choices
+
+### Internal Workflow
+
+1. **System messages**: Agent name, description, and limits are injected as system messages
+2. **Tool resolution**: Up to 6 iterations to resolve tool calls
+3. **Provider selection**: Random provider selection with automatic failover
+4. **Response processing**: Handles both final responses and tool call requests
 
 ## License
 
