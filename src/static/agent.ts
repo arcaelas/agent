@@ -760,10 +760,11 @@ export default class Agent {
         if (success) {
           return [this._context.messages, true];
         } else continue;
-      } catch (error) {
+      } catch (_error) {
         PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
         const idx = FALLBACK.indexOf(provider!);
-        idx !== -1 ? FALLBACK.splice(idx, 1) : FALLBACK.push(provider!);
+        if (idx !== -1) FALLBACK.splice(idx, 1);
+        else FALLBACK.push(provider!);
       }
     }
 

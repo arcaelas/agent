@@ -1,28 +1,22 @@
 {
+  "name": "@arcaelas/agent",
+  "version": "1.0.25",
+  "description": "A small box of tools, which are implemented in different factions of the library.",
+  "license": "ISC",
+  "main": "build/index.js",
   "author": {
     "email": "comunity@arcaelas.com",
     "name": "Arcaelas Insiders",
     "url": "https://github.com/arcaelas"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arcaelas/agent.git"
+  },
   "bugs": {
     "email": "community@arcaelas.com",
     "url": "https://github.com/arcaelas/agent/issues"
   },
-  "dependencies": {
-    "@arcaelas/utils": "^2.0.5"
-  },
-  "description": "A small box of tools, which are implemented in different factions of the library.",
-  "devDependencies": {
-    "tsc-alias": "^1.8.16",
-    "typescript": "^5.0.4"
-  },
-  "files": [
-    "*.md",
-    "*.json",
-    "src/**/*.js",
-    "src/**/*.d.ts",
-    "!tsconfig.json"
-  ],
   "homepage": "https://github.com/arcaelas/agent",
   "keywords": [
     "agent",
@@ -32,23 +26,30 @@
     "arcaelas-insiders",
     "javascript"
   ],
-  "license": "ISC",
-  "main": "src/index.js",
-  "name": "@arcaelas/agent",
+  "files": [
+    "build/"
+  ],
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/arcaelas/agent.git"
-  },
   "scripts": {
     "build": "tsc && tsc-alias",
     "docs": "mkdocs gh-deploy --force",
-    "prepublishOnly": "yarn build && npm version patch",
-    "deploy": "npm publish --access=public",
-    "postpublish": "find src -type f -name '*.js' -o -name '*.d.ts' -o -name '*.map' | xargs rm -f"
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "prepublishOnly": "yarn build && npm version minor",
+    "postpublish": "rm -rf build/"
   },
-  "version": "1.0.25"
+  "dependencies": {
+    "@arcaelas/utils": "^2.0.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsc-alias": "^1.8.16",
+    "typescript": "^5.0.4",
+    "typescript-eslint": "^8.0.0"
+  }
 }
