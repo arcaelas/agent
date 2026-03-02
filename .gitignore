@@ -41,4 +41,7 @@ npm-debug.log*
 .cache
 
 # mkdocs build
-site/.claude/.arko/
+site/
+
+# pyenv
+.python-version
