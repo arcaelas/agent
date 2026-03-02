@@ -217,12 +217,55 @@ export interface ChatCompletionResponse {
 
 /**
  * @description
- * Función de proveedor de IA que procesa un contexto y retorna una respuesta.
- * Compatible con el schema estándar de OpenAI ChatCompletion API.
+ * Chunk emitted by providers in stream mode.
+ * Normalized delta format for text and tool call accumulation.
+ *
+ * Chunk emitido por providers en modo stream.
+ * Formato delta normalizado para texto y acumulación de tool calls.
  */
-export type Provider = (
-  ctx: Context
-) => ChatCompletionResponse | Promise<ChatCompletionResponse>;
+export type ProviderChunk =
+  | { type: "text_delta"; content: string }
+  | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
+  | { type: "finish"; finish_reason: string };
+
+/**
+ * @description
+ * Chunk yielded by Agent.stream() to the consumer.
+ * Message-like format that the consumer can render directly.
+ *
+ * Chunk emitido por Agent.stream() al consumidor.
+ * Formato tipo mensaje que el consumidor puede renderizar directamente.
+ */
+export type StreamChunk =
+  | { role: "assistant"; content: string }
+  | { role: "tool"; name: string; tool_call_id: string; content: string };
+
+/**
+ * @description
+ * Valid input types for Agent.stream().
+ * Accepts a plain string (converted to user message), a Message instance,
+ * or a plain object with role and content.
+ *
+ * Tipos de entrada válidos para Agent.stream().
+ * Acepta un string (convertido a mensaje de usuario), una instancia de Message,
+ * o un objeto plano con role y content.
+ */
+export type StreamInput = string | Message | { role: "user" | "assistant"; content: string };
+
+/**
+ * @description
+ * Dual-mode AI provider function.
+ * Without stream option: returns a ChatCompletionResponse (non-streaming).
+ * With { stream: true }: returns an AsyncIterable of ProviderChunk (streaming).
+ *
+ * Función de proveedor de IA dual-mode.
+ * Sin opción stream: retorna ChatCompletionResponse (sin streaming).
+ * Con { stream: true }: retorna AsyncIterable de ProviderChunk (streaming).
+ */
+export type Provider = {
+  (ctx: Context): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true }): AsyncIterable<ProviderChunk>;
+};
 
 /**
  * @description
@@ -613,6 +656,133 @@ export default class Agent {
    */
   get providers(): Provider[] {
     return this._providers;
+  }
+
+  /**
+   * @description
+   * Streams a conversation turn, yielding message-like chunks as they arrive.
+   * Handles the full agentic loop internally: text streaming, tool execution,
+   * and provider re-invocation. The consumer simply iterates chunks.
+   *
+   * Streamea un turno de conversación, emitiendo chunks tipo mensaje conforme llegan.
+   * Maneja el loop agéntico completo internamente: streaming de texto, ejecución de tools,
+   * y re-invocación del provider. El consumidor simplemente itera chunks.
+   *
+   * @param input - String (converted to user message), Message instance, or {role, content} object
+   * @yields StreamChunk objects with role and content
+   *
+   * @example
+   * ```typescript
+   * for await (const chunk of agent.stream("busca el clima en Madrid")) {
+   *   if (chunk.role === "assistant") process.stdout.write(chunk.content);
+   *   if (chunk.role === "tool") console.log(`[${chunk.name}]: ${chunk.content}`);
+   * }
+   * ```
+   */
+  async *stream(input: StreamInput): AsyncGenerator<StreamChunk, void, unknown> {
+    const message =
+      input instanceof Message
+        ? input
+        : typeof input === "string"
+          ? new Message({ role: "user", content: input })
+          : new Message(input as any);
+
+    this._context.messages = this._context.messages.concat(message);
+
+    const PROVIDERS: Provider[] = [...this._providers];
+    const FALLBACK: Provider[] = [];
+    const TOOLS = this._context.tools;
+    const MAX_LOOPS = 10;
+    let iteration = 0;
+
+    while ((PROVIDERS.length || FALLBACK.length) && iteration++ < MAX_LOOPS) {
+      const provider =
+        PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
+        FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
+
+      try {
+        const chunks = provider!(this._context, { stream: true });
+
+        let text_content = "";
+        const tool_calls_acc: Map<number, { id: string; name: string; arguments: string }> = new Map();
+        let has_tool_calls = false;
+
+        for await (const chunk of chunks) {
+          if (chunk.type === "text_delta") {
+            text_content += chunk.content;
+            yield { role: "assistant", content: chunk.content };
+          }
+
+          if (chunk.type === "tool_call_delta") {
+            has_tool_calls = true;
+            const existing = tool_calls_acc.get(chunk.index) ?? { id: "", name: "", arguments: "" };
+            if (chunk.id) existing.id = chunk.id;
+            if (chunk.name) existing.name = chunk.name;
+            if (chunk.arguments_delta) existing.arguments += chunk.arguments_delta;
+            tool_calls_acc.set(chunk.index, existing);
+          }
+        }
+
+        if (has_tool_calls) {
+          const tool_calls_arr = [...tool_calls_acc.values()].map((tc) => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.name, arguments: tc.arguments },
+          }));
+
+          this._context.messages = this._context.messages.concat(
+            new Message({
+              role: "assistant",
+              content: text_content || null,
+              tool_calls: tool_calls_arr,
+            })
+          );
+
+          const results = await Promise.all(
+            tool_calls_arr.map(async (tc) => {
+              const tool = TOOLS.find((t) => t.name === tc.function.name);
+              if (!tool) return { id: tc.id, name: tc.function.name, content: "Tool not found" };
+              try {
+                const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+                const result = await tool.func(this, args);
+                let content: string;
+                if (result === undefined) content = "undefined";
+                else if (typeof result === "function") content = "[Function]";
+                else if (typeof result === "bigint") content = (result as bigint).toString();
+                else {
+                  try { content = JSON.stringify(result); } catch { content = String(result); }
+                }
+                return { id: tc.id, name: tc.function.name, content };
+              } catch (error: any) {
+                return { id: tc.id, name: tc.function.name, content: error.message ?? String(error) };
+              }
+            })
+          );
+
+          for (const r of results) {
+            this._context.messages = this._context.messages.concat(
+              new Message({ role: "tool", tool_call_id: r.id, content: r.content })
+            );
+            yield { role: "tool", name: r.name, tool_call_id: r.id, content: r.content };
+          }
+
+          continue;
+        }
+
+        if (text_content) {
+          this._context.messages = this._context.messages.concat(
+            new Message({ role: "assistant", content: text_content })
+          );
+        }
+
+        return;
+      } catch (_error) {
+        PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
+        const idx = FALLBACK.indexOf(provider!);
+        if (idx !== -1) FALLBACK.splice(idx, 1);
+        else FALLBACK.push(provider!);
+      }
+    }
   }
 
   /**

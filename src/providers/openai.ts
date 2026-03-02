@@ -1,138 +1,96 @@
 /**
  * @fileoverview
- * Provider de OpenAI para agentes de IA.
+ * Dual-mode OpenAI provider for AI agents.
+ * Supports both non-streaming (ChatCompletionResponse) and streaming (ProviderChunk) modes.
  *
- * Este módulo proporciona una función factory que crea providers compatibles
- * con la API de OpenAI, incluyendo modelos GPT-4, GPT-3.5 y otros modelos de OpenAI.
+ * Provider dual-mode de OpenAI para agentes de IA.
+ * Soporta modo sin streaming (ChatCompletionResponse) y streaming (ProviderChunk).
  *
  * @author Arcaelas Insiders
- * @version 1.0.0
+ * @version 2.0.0
  * @since 1.0.0
- *
- * @example
- * ```typescript
- * import CreateOpenAIProvider from './providers/openai';
- * import Agent from './static/agent';
- *
- * // Provider básico con API key
- * const openai_provider = CreateOpenAIProvider({
- *   api_key: "sk-...",
- *   model: "gpt-4"
- * });
- *
- * // Provider con configuración completa
- * const custom_openai = CreateOpenAIProvider({
- *   api_key: process.env.OPENAI_API_KEY,
- *   base_url: "https://api.openai.com/v1",
- *   model: "gpt-4-turbo-preview",
- *   temperature: 0.7,
- *   max_tokens: 2000
- * });
- *
- * const agent = new Agent({
- *   name: "Assistant",
- *   description: "AI Assistant powered by OpenAI",
- *   providers: [openai_provider]
- * });
- * ```
  */
 
-import { ChatCompletionResponse } from "~/static/agent";
-import Context from "~/static/context";
+import type { ChatCompletionResponse, ProviderChunk } from "~/static/agent";
+import type Context from "~/static/context";
+import { parse_sse } from "~/utils/sse";
 
 /**
  * @description
+ * Configuration options for the OpenAI provider.
  * Opciones de configuración para el provider de OpenAI.
  */
 export interface OpenAIProviderOptions {
   /**
    * @description
-   * API key de OpenAI para autenticación.
+   * OpenAI API key for authentication.
    */
   api_key: string;
 
   /**
    * @description
-   * URL base de la API de OpenAI.
-   * Por defecto: "https://api.openai.com/v1"
+   * Base URL for the OpenAI API.
+   * Default: "https://api.openai.com/v1"
    */
   base_url?: string;
 
   /**
    * @description
-   * Modelo de OpenAI a utilizar.
-   * Ejemplos: "gpt-4", "gpt-4-turbo-preview", "gpt-3.5-turbo"
+   * OpenAI model to use.
    */
   model: string;
 
   /**
    * @description
-   * Temperatura para controlar la aleatoriedad de las respuestas.
-   * Rango: 0.0 a 2.0
+   * Temperature for response randomness control. Range: 0.0 to 2.0.
    */
   temperature?: number;
 
   /**
    * @description
-   * Máximo número de tokens a generar en la respuesta.
+   * Maximum number of tokens to generate.
    */
   max_tokens?: number;
 
   /**
    * @description
-   * Headers HTTP adicionales para incluir en las peticiones.
+   * Additional HTTP headers to include in requests.
    */
   headers?: Record<string, string>;
 }
 
 /**
  * @description
- * Provider de OpenAI compatible con el sistema de agentes.
+ * Dual-mode OpenAI provider. Returns a function that supports both
+ * non-streaming and streaming modes via the optional second argument.
  *
- * Esta clase retorna un Provider que procesa el Context del agente
- * y realiza llamadas a la API de OpenAI. Soporta streaming, tool calling y
- * todas las características estándar de OpenAI ChatCompletion API.
- *
- * @param options Opciones de configuración del provider
- * @returns Provider function compatible con Agent
+ * Provider dual-mode de OpenAI. Retorna una función que soporta
+ * modo sin streaming y streaming via el segundo argumento opcional.
  *
  * @example
  * ```typescript
- * // Provider básico
- * const basic_provider = new OpenAI({
- *   api_key: "sk-proj-...",
- *   model: "gpt-4"
- * });
+ * const openai = new OpenAI({ api_key: "sk-...", model: "gpt-4" });
  *
- * // Provider con configuración avanzada
- * const advanced_provider = new OpenAI({
- *   api_key: process.env.OPENAI_API_KEY!,
- *   base_url: "https://api.openai.com/v1",
- *   model: "gpt-4-turbo-preview",
- *   temperature: 0.8,
- *   max_tokens: 4000,
- *   headers: {
- *     "OpenAI-Organization": "org-..."
- *   }
- * });
+ * // Non-streaming (call)
+ * const response = await openai(ctx);
  *
- * const agent = new Agent({
- *   name: "ChatBot",
- *   description: "Conversational AI assistant",
- *   providers: [basic_provider, advanced_provider]
- * });
+ * // Streaming (stream)
+ * for await (const chunk of openai(ctx, { stream: true })) {
+ *   // chunk: ProviderChunk
+ * }
  * ```
  */
 export default class OpenAI extends Function {
   constructor(options: OpenAIProviderOptions) {
     super();
-    return (async (ctx: Context): Promise<ChatCompletionResponse> => {
-      // Transformar rules a system messages
+
+    const base_url = options.base_url ?? "https://api.openai.com/v1";
+
+    const build_payload = (ctx: Context) => {
       const rules_messages = ctx.rules.length
         ? [{ role: "system" as const, content: ctx.rules.map((r) => r.description).join("\n\n") }]
         : [];
 
-      // Transformar messages del contexto (filtrar timestamp)
       const context_messages = ctx.messages.map((m) => {
         const json = m.toJSON();
         const { timestamp, ...message } = json;
@@ -140,38 +98,85 @@ export default class OpenAI extends Function {
       });
 
       const messages = [...rules_messages, ...context_messages];
+      const tools = ctx.tools.length ? ctx.tools.map((t) => t.toJSON()) : undefined;
 
-      // Transformar tools
-      const tools = ctx.tools.length
-        ? ctx.tools.map((t) => t.toJSON())
-        : undefined;
+      return { messages, tools };
+    };
 
-      const response = await fetch(
-        `${options.base_url ?? "https://api.openai.com/v1"}/chat/completions`,
-        {
+    const build_headers = () => ({
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${options.api_key}`,
+      ...(options.headers ?? {}),
+    });
+
+    return ((ctx: Context, opts?: { stream: true }): any => {
+      const { messages, tools } = build_payload(ctx);
+
+      if (!opts?.stream) {
+        return (async (): Promise<ChatCompletionResponse> => {
+          const response = await fetch(`${base_url}/chat/completions`, {
+            method: "POST",
+            headers: build_headers(),
+            body: JSON.stringify({
+              model: options.model,
+              messages,
+              tools,
+              temperature: options.temperature ?? 1.0,
+              max_tokens: options.max_tokens,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+          }
+
+          return await response.json();
+        })();
+      }
+
+      return (async function* (): AsyncGenerator<ProviderChunk, void, unknown> {
+        const response = await fetch(`${base_url}/chat/completions`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${options.api_key}`,
-            ...(options.headers ?? {}),
-          },
+          headers: build_headers(),
           body: JSON.stringify({
             model: options.model,
             messages,
             tools,
             temperature: options.temperature ?? 1.0,
             max_tokens: options.max_tokens,
+            stream: true,
           }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
         }
-      );
 
-      if (!response.ok) {
-        throw new Error(
-          `OpenAI API error: ${response.status} ${response.statusText}`
-        );
-      }
+        for await (const chunk of parse_sse(response)) {
+          const delta = chunk.choices?.[0]?.delta;
+          if (!delta) continue;
 
-      return await response.json();
+          if (delta.content) {
+            yield { type: "text_delta", content: delta.content };
+          }
+
+          if (delta.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              yield {
+                type: "tool_call_delta",
+                index: tc.index,
+                id: tc.id,
+                name: tc.function?.name,
+                arguments_delta: tc.function?.arguments,
+              };
+            }
+          }
+
+          if (chunk.choices?.[0]?.finish_reason) {
+            yield { type: "finish", finish_reason: chunk.choices[0].finish_reason };
+          }
+        }
+      })();
     }) as any;
   }
 }
