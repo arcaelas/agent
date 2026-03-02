@@ -1,58 +1,67 @@
-# Documentación de Arcaelas Agent
+# Documentacion de Arcaelas Agent
 
-Bienvenido a **@arcaelas/agent** - una librería TypeScript lista para producción para construir agentes de IA sofisticados con soporte multi-proveedor, contextos reactivos y orquestación inteligente de herramientas.
+Bienvenido a **@arcaelas/agent** - una libreria TypeScript lista para produccion para construir agentes de IA sofisticados con soporte multi-proveedor, contextos reactivos, streaming y orquestacion inteligente de herramientas.
 
-## ¿Qué es Arcaelas Agent?
+## Que es Arcaelas Agent?
 
 @arcaelas/agent te permite crear agentes de IA que escalan desde chatbots simples hasta flujos de trabajo organizacionales complejos mediante:
 
-- **🔄 Soporte Multi-Proveedor** - Conmutación automática entre OpenAI, Anthropic, Groq y APIs personalizadas
-- **🏗️ Arquitectura Reactiva** - Herencia jerárquica de contexto con gestión automática de estado
-- **🛠️ Ecosistema de Herramientas** - Herramientas HTTP integradas e integración fluida de funciones personalizadas
-- **💎 TypeScript Completo** - Seguridad de tipos completa con uniones discriminadas y genéricos
+- **Soporte Multi-Proveedor** - Conmutacion automatica entre OpenAI, Anthropic, Groq y APIs personalizadas
+- **Arquitectura Reactiva** - Herencia jerarquica de contexto con gestion automatica de estado
+- **Ecosistema de Herramientas** - Herramientas HTTP integradas e integracion fluida de funciones personalizadas
+- **Streaming** - Respuestas en tiempo real via `Agent.stream()` con soporte completo de tool-call loop
+- **TypeScript Completo** - Seguridad de tipos completa con uniones discriminadas y genericos
 
-## Inicio Rápido
+## Inicio Rapido
 
-### Instalación
+### Instalacion
 
 ```bash
-npm install @arcaelas/agent
+yarn add @arcaelas/agent
 ```
 
-### Tu Primer Agente
+### Tu Primer Agent
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
-import OpenAI from 'openai';
+import { Agent, Context } from '@arcaelas/agent';
+import type { Provider } from '@arcaelas/agent';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const my_provider: Provider = async (ctx: Context) => {
+  // ctx contiene messages, tools, metadata, rules
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4",
+      messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
+    })
+  });
+  return await response.json();
+};
 
 const assistant = new Agent({
   name: "Asistente_Personal",
-  description: "Asistente útil para tareas diarias",
-  providers: [
-    async (ctx) => {
-      return await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: ctx.messages.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      });
-    }
-  ]
+  description: "Asistente util para tareas diarias",
+  providers: [my_provider]
 });
 
-const [messages, success] = await assistant.call("¿Cómo está el clima hoy?");
+// Sin streaming
+const [messages, success] = await assistant.call("Como esta el clima hoy?");
+
+// Con streaming
+for await (const chunk of assistant.stream("Cuentame un chiste")) {
+  if (chunk.role === "assistant") process.stdout.write(chunk.content);
+}
 ```
 
-**[Continuar con el tutorial completo →](guides/getting-started.md)**
+**[Continuar con el tutorial completo ->](guides/getting-started.md)**
 
 ## Arquitectura Principal
 
-### Agente
+### Agent
 
 Orquestador central que combina identidad, comportamiento, herramientas y proveedores de IA.
 
@@ -66,11 +75,11 @@ const agent = new Agent({
 });
 ```
 
-**[Aprende más →](api/agent.md)**
+**[Aprende mas ->](api/agent.md)**
 
-### Contexto
+### Context
 
-Gestión jerárquica de estado con herencia automática.
+Gestion jerarquica de estado con herencia automatica.
 
 ```typescript
 const parent_context = new Context({
@@ -84,9 +93,9 @@ const child_context = new Context({
 });
 ```
 
-**[Aprende más →](api/context.md)**
+**[Aprende mas ->](api/context.md)**
 
-### Herramientas
+### Tools
 
 Funciones extensibles para integraciones externas.
 
@@ -98,52 +107,52 @@ const weather_tool = new Tool("get_weather", {
     units: "Unidades de temperatura (celsius/fahrenheit)"
   },
   func: async (agent, { city, units }) => {
-    return `Clima en ${city}: Soleado, 24°C`;
+    return `Clima en ${city}: Soleado, 24C`;
   }
 });
 ```
 
-**[Aprende más →](api/tool.md)**
+**[Aprende mas ->](api/tool.md)**
 
-## Documentación
+## Documentacion
 
-### 📚 Guías
+### Guias
 
 - **[Comenzando](guides/getting-started.md)** - Tutorial completo
-- **[Conceptos Básicos](guides/core-concepts.md)** - Visión general de la arquitectura
-- **[Proveedores](guides/providers.md)** - Configuración multi-proveedor
-- **[Mejores Prácticas](guides/best-practices.md)** - Patrones de producción
+- **[Conceptos Basicos](guides/core-concepts.md)** - Vision general de la arquitectura
+- **[Proveedores](guides/providers.md)** - Configuracion multi-proveedor
+- **[Mejores Practicas](guides/best-practices.md)** - Patrones de produccion
 
-### 🔧 Referencia API
+### Referencia API
 
 - **[Agent](api/agent.md)** - Orquestador principal
-- **[Context](api/context.md)** - Gestión de estado
-- **[Metadata](api/metadata.md)** - Almacén clave-valor
+- **[Context](api/context.md)** - Gestion de estado
+- **[Metadata](api/metadata.md)** - Almacen clave-valor
 - **[Tool](api/tool.md)** - Funciones personalizadas
 - **[Rule](api/rule.md)** - Directrices de comportamiento
-- **[Message](api/message.md)** - Mensajes de conversación
+- **[Message](api/message.md)** - Mensajes de conversacion
 - **[Providers](api/providers.md)** - Funciones de proveedor
 - **[Built-in Tools](api/built-in-tools.md)** - RemoteTool y TimeTool
 
-### 💡 Ejemplos
+### Ejemplos
 
 - **[Basic Agent](examples/basic-agent.md)** - Chatbot simple
-- **[Multi-Provider](examples/multi-provider.md)** - Configuración resiliente
+- **[Multi-Provider](examples/multi-provider.md)** - Configuracion resiliente
 - **[Custom Tools](examples/custom-tools.md)** - Creando herramientas
 - **[Context Inheritance](examples/context-inheritance.md)** - Patrones empresariales
 - **[Advanced Patterns](examples/advanced-patterns.md)** - Escenarios complejos
 
-### 🎓 Avanzado
+### Avanzado
 
-- **[Architecture](advanced/architecture.md)** - Diseño interno
-- **[Performance](advanced/performance.md)** - Optimización
+- **[Architecture](advanced/architecture.md)** - Diseno interno
+- **[Performance](advanced/performance.md)** - Optimizacion
 - **[Troubleshooting](advanced/troubleshooting.md)** - Problemas comunes
-- **[Migration Guide](advanced/migration.md)** - Actualización de versiones
+- **[Migration Guide](advanced/migration.md)** - Actualizacion de versiones
 
 ## Requisitos
 
-- Node.js ≥ 16.0.0
-- TypeScript ≥ 4.5.0 (opcional)
+- Node.js >= 16.0.0
+- TypeScript >= 4.5.0 (opcional)
 
 ## Enlaces
 
@@ -154,4 +163,4 @@ const weather_tool = new Tool("get_weather", {
 
 ---
 
-**¿Listo para construir agentes de IA inteligentes?** Comienza con la **[Guía de Inicio](guides/getting-started.md)** →
+**Listo para construir agentes de IA inteligentes?** Comienza con la **[Guia de Inicio](guides/getting-started.md)** ->

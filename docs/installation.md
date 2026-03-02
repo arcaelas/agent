@@ -4,16 +4,16 @@ This guide covers different methods to install **@arcaelas/agent** in your proje
 
 ## Package Managers
 
+### Yarn (recommended)
+
+```bash
+yarn add @arcaelas/agent
+```
+
 ### NPM
 
 ```bash
 npm install @arcaelas/agent
-```
-
-### Yarn
-
-```bash
-yarn add @arcaelas/agent
 ```
 
 ### PNPM
@@ -32,8 +32,8 @@ bun add @arcaelas/agent
 
 Ensure your environment meets these minimum requirements:
 
-- **Node.js** ≥ 16.0.0
-- **TypeScript** ≥ 4.5.0 (for TypeScript projects)
+- **Node.js** >= 16.0.0
+- **TypeScript** >= 4.5.0 (for TypeScript projects)
 - **Modern Browser** (ES2020+ support for browser usage)
 
 ## Environment Setup
@@ -98,29 +98,30 @@ Ensure your `tsconfig.json` includes:
 Test your installation with this simple example:
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
-import OpenAI from 'openai';
+import { Agent, Context } from '@arcaelas/agent';
+import type { Provider } from '@arcaelas/agent';
+
+// A minimal provider that receives Context
+const test_provider: Provider = async (ctx: Context) => {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: "gpt-3.5-turbo",
+      messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
+    })
+  });
+  return await response.json();
+};
 
 // Create a test agent
 const agent = new Agent({
   name: "Test_Agent",
   description: "Verification agent",
-  providers: [
-    async (ctx) => {
-      const openai = new OpenAI({
-        baseURL: "https://api.openai.com/v1",
-        apiKey: process.env.OPENAI_API_KEY
-      });
-
-      return await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: ctx.messages.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      });
-    }
-  ]
+  providers: [test_provider]
 });
 
 // Test the agent
@@ -128,17 +129,17 @@ console.log("Testing agent...");
 const [conversation, success] = await agent.call("Say hello");
 
 if (success) {
-  console.log("✅ Installation successful!");
+  console.log("Installation successful!");
   console.log("Response:", conversation[conversation.length - 1].content);
 } else {
-  console.log("❌ Installation failed. Check your API key.");
+  console.log("Installation failed. Check your API key.");
 }
 ```
 
 **Expected Output:**
 ```
 Testing agent...
-✅ Installation successful!
+Installation successful!
 Response: Hello! How can I assist you today?
 ```
 
@@ -156,17 +157,17 @@ If you get "Module not found" errors:
 
 ```bash
 # Clear cache and reinstall
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules yarn.lock
+yarn install
 ```
 
 ### TypeScript Errors
 
 If TypeScript shows errors:
 
-1. Ensure TypeScript version ≥ 4.5.0
+1. Ensure TypeScript version >= 4.5.0
 2. Check `tsconfig.json` configuration
-3. Run `npm install --save-dev @types/node`
+3. Run `yarn add --dev @types/node`
 
 ### API Key Issues
 

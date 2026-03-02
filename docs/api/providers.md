@@ -1,166 +1,214 @@
 # Providers
 
-**Providers** are functions that integrate AI services (OpenAI, Anthropic, Groq, etc.) with agents. They receive context and return chat completions in OpenAI-compatible format.
+**Providers** are classes that extend `Function` and act as dual-mode AI provider callables. Each provider instance is itself a function that receives a `Context` and returns either a `ChatCompletionResponse` (non-streaming) or an `AsyncIterable<ProviderChunk>` (streaming).
 
 ## Overview
 
-Providers enable multi-provider failover and vendor flexibility through a standard interface.
+The library ships four built-in providers: **OpenAI**, **Groq**, **DeepSeek**, and **Claude**. All conform to the `Provider` type and can be used interchangeably.
 
-### Key Features
+- All providers extend `Function` -- the constructor returns a callable
+- Without `{ stream: true }`: returns `ChatCompletionResponse | Promise<ChatCompletionResponse>`
+- With `{ stream: true }`: returns `AsyncIterable<ProviderChunk>`
+- OpenAI, Groq, and DeepSeek are OpenAI-compatible (same endpoint format)
+- Claude automatically transforms between OpenAI and Anthropic message formats
 
-- ✅ Standard OpenAI ChatCompletion format
-- ✅ Automatic failover between providers
-- ✅ Support for any AI service (OpenAI, Anthropic, Groq, custom)
-- ✅ Access to full agent context
-- ✅ Tool call support
-
-## Provider Function Signature
+## Provider Type
 
 ```typescript
-type Provider = (context: Agent) => Promise<ChatCompletion>;
+type Provider = {
+  (ctx: Context): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true }): AsyncIterable<ProviderChunk>;
+};
 ```
 
-**Parameters:**
-- **context**: Full agent instance with messages, tools, rules, metadata
-
-**Returns:** OpenAI-compatible ChatCompletion object
-
-## ChatCompletion Format
+## ProviderChunk
 
 ```typescript
-interface ChatCompletion {
-  id: string;
-  object: "chat.completion";
-  created: number;
-  model: string;
-  choices: Array<{
-    index: number;
-    message: {
-      role: "assistant";
-      content: string;
-      tool_calls?: Array<{
-        id: string;
-        type: "function";
-        function: {
-          name: string;
-          arguments: string;  // JSON string
-        };
-      }>;
-    };
-    finish_reason: "stop" | "tool_calls" | "length" | null;
-  }>;
+type ProviderChunk =
+  | { type: "text_delta"; content: string }
+  | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
+  | { type: "finish"; finish_reason: string };
+```
+
+---
+
+## OpenAI
+
+```typescript
+import { OpenAI } from '@arcaelas/agent/providers';
+```
+
+### OpenAIProviderOptions
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `api_key` | `string` | Yes | -- | OpenAI API key |
+| `base_url` | `string` | No | `"https://api.openai.com/v1"` | Base URL |
+| `model` | `string` | Yes | -- | Model name (e.g., `"gpt-4"`) |
+| `temperature` | `number` | No | `1.0` | Randomness (0.0 - 2.0) |
+| `max_tokens` | `number` | No | -- | Max tokens to generate |
+| `headers` | `Record<string, string>` | No | -- | Additional HTTP headers |
+
+### Example
+
+```typescript
+const openai = new OpenAI({
+  api_key: "sk-...",
+  model: "gpt-4",
+  temperature: 0.7,
+  max_tokens: 2048
+});
+
+// Non-streaming
+const response = await openai(ctx);
+console.log(response.choices[0].message.content);
+
+// Streaming
+for await (const chunk of openai(ctx, { stream: true })) {
+  if (chunk.type === "text_delta") process.stdout.write(chunk.content);
 }
 ```
 
-## Provider Examples
+---
 
-### OpenAI Provider
-
-```typescript
-import OpenAI from 'openai';
-import type { Provider } from '@arcaelas/agent';
-
-const openai_provider: Provider = async (agent) => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  });
-
-  return await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: agent.messages.map(m => ({
-      role: m.role,
-      content: m.content,
-      ...(m.tool_call_id && { tool_call_id: m.tool_call_id })
-    })),
-    tools: agent.tools?.map(tool => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: {
-          type: "object",
-          properties: tool.parameters,
-          required: Object.keys(tool.parameters)
-        }
-      }
-    }))
-  });
-};
-```
-
-### Anthropic Provider
+## Groq
 
 ```typescript
-import Anthropic from '@anthropic-ai/sdk';
-import type { Provider } from '@arcaelas/agent';
-
-const anthropic_provider: Provider = async (agent) => {
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY
-  });
-
-  const response = await anthropic.messages.create({
-    model: "claude-3-sonnet-20240229",
-    max_tokens: 4000,
-    messages: agent.messages
-      .filter(m => m.role !== "system")
-      .map(m => ({
-        role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content
-      }))
-  });
-
-  // Convert Anthropic format to OpenAI format
-  return {
-    id: response.id,
-    object: "chat.completion",
-    created: Math.floor(Date.now() / 1000),
-    model: "claude-3-sonnet",
-    choices: [{
-      index: 0,
-      message: {
-        role: "assistant",
-        content: response.content[0].type === "text"
-          ? response.content[0].text
-          : ""
-      },
-      finish_reason: "stop"
-    }]
-  };
-};
+import { Groq } from '@arcaelas/agent/providers';
 ```
 
-### Groq Provider
+OpenAI-compatible provider for Groq's ultra-fast inference with open-source models.
+
+### GroqProviderOptions
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `api_key` | `string` | Yes | -- | Groq API key |
+| `base_url` | `string` | No | `"https://api.groq.com/openai/v1"` | Base URL |
+| `model` | `string` | Yes | -- | Model name (e.g., `"llama-3.1-70b-versatile"`) |
+| `temperature` | `number` | No | `1.0` | Randomness (0.0 - 2.0) |
+| `max_tokens` | `number` | No | -- | Max tokens to generate |
+| `headers` | `Record<string, string>` | No | -- | Additional HTTP headers |
+
+### Example
 
 ```typescript
-import Groq from 'groq-sdk';
-import type { Provider } from '@arcaelas/agent';
+const groq = new Groq({
+  api_key: "gsk_...",
+  model: "llama-3.1-70b-versatile"
+});
 
-const groq_provider: Provider = async (agent) => {
-  const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY
-  });
+// Non-streaming
+const response = await groq(ctx);
 
-  return await groq.chat.completions.create({
-    model: "llama-3.1-70b-versatile",
-    messages: agent.messages.map(m => ({
-      role: m.role,
-      content: m.content
-    })),
-    tools: agent.tools?.map(tool => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: {
-          type: "object",
-          properties: tool.parameters
-        }
-      }
-    }))
-  });
-};
+// Streaming
+for await (const chunk of groq(ctx, { stream: true })) {
+  if (chunk.type === "text_delta") process.stdout.write(chunk.content);
+}
 ```
+
+---
+
+## DeepSeek
+
+```typescript
+import { DeepSeek } from '@arcaelas/agent/providers';
+```
+
+OpenAI-compatible provider specialized in reasoning and code generation.
+
+### DeepSeekProviderOptions
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `api_key` | `string` | Yes | -- | DeepSeek API key |
+| `base_url` | `string` | No | `"https://api.deepseek.com/v1"` | Base URL |
+| `model` | `string` | Yes | -- | Model name (e.g., `"deepseek-chat"`) |
+| `temperature` | `number` | No | `1.0` | Randomness (0.0 - 2.0) |
+| `max_tokens` | `number` | No | -- | Max tokens to generate |
+| `headers` | `Record<string, string>` | No | -- | Additional HTTP headers |
+
+### Example
+
+```typescript
+const deepseek = new DeepSeek({
+  api_key: "sk-...",
+  model: "deepseek-chat"
+});
+
+// Non-streaming
+const response = await deepseek(ctx);
+
+// Streaming
+for await (const chunk of deepseek(ctx, { stream: true })) {
+  if (chunk.type === "text_delta") process.stdout.write(chunk.content);
+}
+```
+
+---
+
+## Claude
+
+```typescript
+import { Claude } from '@arcaelas/agent/providers';
+```
+
+Anthropic provider with automatic format transformation. Internally:
+
+- Extracts `system` role messages and rules into Anthropic's `system` parameter
+- Converts `tool` messages to `tool_result` content blocks inside `user` messages
+- Converts `assistant` messages with `tool_calls` to `tool_use` content blocks
+- Converts tool definitions from OpenAI format to Anthropic `input_schema` format
+- Non-streaming responses are transformed back to `ChatCompletionResponse` format
+- Streaming uses `parse_anthropic_sse` and normalizes events to `ProviderChunk`
+- Uses `x-api-key` header instead of `Authorization: Bearer`
+- Sends `anthropic-version: 2023-06-01` header
+
+### ClaudeProviderOptions
+
+| Property | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `api_key` | `string` | Yes | -- | Anthropic API key |
+| `base_url` | `string` | No | `"https://api.anthropic.com/v1"` | Base URL |
+| `model` | `string` | Yes | -- | Model name (e.g., `"claude-3-5-sonnet-20241022"`) |
+| `temperature` | `number` | No | `1.0` | Randomness (0.0 - 1.0) |
+| `max_tokens` | `number` | No | `1024` | Max tokens to generate |
+| `headers` | `Record<string, string>` | No | -- | Additional HTTP headers |
+
+### Example
+
+```typescript
+const claude = new Claude({
+  api_key: "sk-ant-...",
+  model: "claude-3-5-sonnet-20241022",
+  max_tokens: 4096
+});
+
+// Non-streaming -- returns ChatCompletionResponse (OpenAI format)
+const response = await claude(ctx);
+console.log(response.choices[0].message.content);
+
+// Streaming
+for await (const chunk of claude(ctx, { stream: true })) {
+  if (chunk.type === "text_delta") process.stdout.write(chunk.content);
+  if (chunk.type === "tool_call_delta") {
+    // Accumulated tool call data
+  }
+  if (chunk.type === "finish") {
+    // finish_reason mapped: "end_turn" -> "stop", "tool_use" -> "tool_calls", "max_tokens" -> "length"
+  }
+}
+```
+
+### Claude Format Mapping
+
+| Anthropic stop_reason | Mapped finish_reason |
+|----------------------|---------------------|
+| `"end_turn"` | `"stop"` |
+| `"tool_use"` | `"tool_calls"` |
+| `"max_tokens"` | `"length"` |
+
+---
 
 ## Multi-Provider Setup
 
@@ -168,105 +216,20 @@ Configure automatic failover:
 
 ```typescript
 import { Agent } from '@arcaelas/agent';
+import { OpenAI, Claude, Groq } from '@arcaelas/agent/providers';
 
 const agent = new Agent({
   name: "Resilient_Assistant",
   description: "High-availability AI assistant",
   providers: [
-    openai_provider,      // Primary (fastest)
-    groq_provider,        // Backup (fast alternative)
-    anthropic_provider    // Fallback (reliable)
+    new OpenAI({ api_key: process.env.OPENAI_API_KEY!, model: "gpt-4" }),
+    new Groq({ api_key: process.env.GROQ_API_KEY!, model: "llama-3.1-70b-versatile" }),
+    new Claude({ api_key: process.env.ANTHROPIC_API_KEY!, model: "claude-3-5-sonnet-20241022" })
   ]
 });
 
-// Agent automatically tries providers in order on failure
+// Agent picks a random provider. On failure, tries others.
 const [messages, success] = await agent.call("Hello");
-```
-
-## Best Practices
-
-### 1. Handle Errors Gracefully
-
-```typescript
-const safe_provider: Provider = async (agent) => {
-  try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    return await openai.chat.completions.create({...});
-  } catch (error) {
-    console.error("Provider failed:", error);
-    throw error;  // Let agent try next provider
-  }
-};
-```
-
-### 2. Implement Timeouts
-
-```typescript
-const timeout_provider: Provider = async (agent) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);  // 30s timeout
-
-  try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.chat.completions.create({
-      ...options,
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    return response;
-  } catch (error) {
-    clearTimeout(timeout);
-    throw error;
-  }
-};
-```
-
-### 3. Use Environment Variables
-
-```typescript
-const secure_provider: Provider = async (agent) => {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY not configured");
-  }
-
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL  // Optional custom endpoint
-  });
-
-  return await openai.chat.completions.create({...});
-};
-```
-
-### 4. Log Provider Usage
-
-```typescript
-const logged_provider: Provider = async (agent) => {
-  const start = Date.now();
-
-  try {
-    const response = await openai_provider(agent);
-    const duration = Date.now() - start;
-
-    console.log({
-      provider: "openai",
-      model: response.model,
-      duration_ms: duration,
-      tokens: response.usage?.total_tokens,
-      success: true
-    });
-
-    return response;
-  } catch (error) {
-    console.error({
-      provider: "openai",
-      duration_ms: Date.now() - start,
-      error: error.message,
-      success: false
-    });
-    throw error;
-  }
-};
 ```
 
 ## Related
@@ -274,8 +237,7 @@ const logged_provider: Provider = async (agent) => {
 - **[Agent](agent.md)** - Uses providers for completions
 - **[Message](message.md)** - Provider input/output format
 - **[Tool](tool.md)** - Providers handle tool calls
-- **[Providers Guide](../guides/providers.md)** - Detailed provider setup
 
 ---
 
-**Next:** Learn about [Built-in Tools →](built-in-tools.md)
+**Next:** Learn about [Built-in Tools ->](built-in-tools.md)

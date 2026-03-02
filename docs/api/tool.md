@@ -11,15 +11,6 @@ Tools enable agents to interact with external systems, process data, and perform
 - **Reusable**: Share tools across multiple agents and contexts
 - **Type-Safe**: Full TypeScript support with generics
 
-### Key Features
-
-- ✅ Two-tier API (simple and advanced)
-- ✅ Sync and async function support
-- ✅ Parameter schema definition
-- ✅ JSON serialization
-- ✅ Type-safe with TypeScript generics
-- ✅ Framework-agnostic
-
 ## Constructor
 
 Tool has two constructor overloads for different use cases:
@@ -30,7 +21,7 @@ Tool has two constructor overloads for different use cases:
 new Tool(name: string, handler: (agent: Agent, input: string) => any)
 ```
 
-Creates a tool with a single string input parameter.
+Creates a tool with a single string input parameter. The default parameters for a simple tool are `{ input: "<tool-input>" }`, where the value is the literal string `"<tool-input>"` used as the parameter description. The description defaults to the tool name.
 
 **Parameters:**
 - **name**: Unique tool identifier
@@ -43,8 +34,7 @@ import { Tool } from '@arcaelas/agent';
 
 // Weather tool
 const weather_tool = new Tool('get_weather', (agent: Agent, input: string) => {
-  // input: "What's the weather in Madrid?"
-  return "Sunny, 24°C in Madrid";
+  return "Sunny, 24C in Madrid";
 });
 
 // Time tool
@@ -82,7 +72,7 @@ interface ToolOptions<T = Record<string, string>> {
   parameters?: T;
 
   /** Function to execute (sync or async) */
-  func(agent: Agent, params: T): string | Promise<string>;
+  func(agent: Agent, params: T extends object ? T : { input: string }): any;
 }
 ```
 
@@ -108,30 +98,6 @@ const search_tool = new Tool('search_database', {
     return JSON.stringify(results);
   }
 });
-
-// Calculator tool
-const calculator = new Tool('calculate', {
-  description: 'Perform basic mathematical operations',
-  parameters: {
-    operation: 'Operation to perform (+, -, *, /)',
-    a: 'First number',
-    b: 'Second number'
-  },
-  func: (agent, { operation, a, b }) => {
-    const num_a = parseFloat(a);
-    const num_b = parseFloat(b);
-
-    switch (operation) {
-      case '+': return (num_a + num_b).toString();
-      case '-': return (num_a - num_b).toString();
-      case '*': return (num_a * num_b).toString();
-      case '/': return num_b !== 0
-        ? (num_a / num_b).toString()
-        : 'Error: Division by zero';
-      default: return 'Invalid operation';
-    }
-  }
-});
 ```
 
 ## Properties
@@ -144,13 +110,6 @@ readonly name: string
 
 Unique identifier for the tool. Used for deduplication in contexts.
 
-**Example:**
-
-```typescript
-const tool = new Tool('weather_api', () => "...");
-console.log(tool.name); // "weather_api"
-```
-
 ### description
 
 ```typescript
@@ -159,31 +118,18 @@ readonly description: string
 
 Human-readable description of what the tool does. For simple tools, defaults to the tool name.
 
-**Example:**
-
-```typescript
-const tool = new Tool('search', {
-  description: 'Search through customer records',
-  func: (agent) => "..."
-});
-
-console.log(tool.description); // "Search through customer records"
-```
-
 ### parameters
 
 ```typescript
 readonly parameters: T | { input: string }
 ```
 
-Parameter schema describing expected inputs. Simple tools get `{ input: string }` automatically.
-
-**Example:**
+Parameter schema describing expected inputs. Simple tools get `{ input: "<tool-input>" }` automatically.
 
 ```typescript
 // Simple tool parameters
 const simple = new Tool('greet', (agent, input) => `Hello ${input}`);
-console.log(simple.parameters); // { input: "Entrada para la herramienta" }
+console.log(simple.parameters); // { input: "<tool-input>" }
 
 // Advanced tool parameters
 const advanced = new Tool('search', {
@@ -202,22 +148,10 @@ console.log(advanced.parameters);
 ### func
 
 ```typescript
-readonly func: (agent: Agent, params: any) => any
+readonly func: (agent: Agent, params: T extends object ? T : { input: string }) => any
 ```
 
-The executable function. Can be sync or async.
-
-**Example:**
-
-```typescript
-const tool = new Tool('process', (agent, input) => {
-  return input.toUpperCase();
-});
-
-// Execute directly (passing agent instance)
-const result = tool.func(agent, { input: "hello" });
-console.log(result); // "HELLO"
-```
+The executable function. Can be sync or async. Returns any value; the Agent serializes the result automatically.
 
 ## Methods
 
@@ -225,15 +159,21 @@ console.log(result); // "HELLO"
 
 ```typescript
 toJSON(): {
-  name: string;
-  description: string;
-  parameters: T | { input: string };
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: "object";
+      properties: Record<string, { type: "string"; description: string }>;
+    };
+  };
 }
 ```
 
-Serializes tool metadata (excludes the function). Called automatically by `JSON.stringify()`.
+Serializes the tool to OpenAI function-calling format. Each parameter key is transformed into `{ type: "string", description: <original_value> }`. Called automatically by `JSON.stringify()`.
 
-**Returns:** Serializable representation
+**Returns:** OpenAI-compatible tool definition
 
 **Example:**
 
@@ -248,22 +188,22 @@ const tool = new Tool('calculator', {
   func: (agent) => "..."
 });
 
-// Automatic serialization
-const json = JSON.stringify(tool);
-console.log(json);
+console.log(JSON.stringify(tool, null, 2));
 // {
-//   "name": "calculator",
-//   "description": "Basic math operations",
-//   "parameters": {
-//     "operation": "+, -, *, /",
-//     "a": "First number",
-//     "b": "Second number"
+//   "type": "function",
+//   "function": {
+//     "name": "calculator",
+//     "description": "Basic math operations",
+//     "parameters": {
+//       "type": "object",
+//       "properties": {
+//         "operation": { "type": "string", "description": "+, -, *, /" },
+//         "a": { "type": "string", "description": "First number" },
+//         "b": { "type": "string", "description": "Second number" }
+//       }
+//     }
 //   }
 // }
-
-// Manual call
-const data = tool.toJSON();
-console.log(data.name); // "calculator"
 ```
 
 ### toString()
@@ -338,296 +278,6 @@ const create_user = new Tool('create_user', {
     return `User created with ID: ${user.id}`;
   }
 });
-
-const find_user = new Tool('find_user', {
-  description: 'Find user by email',
-  parameters: {
-    email: 'Email address to search'
-  },
-  func: async (agent, { email }) => {
-    const user = await db.users.findOne({ email });
-    return user ? JSON.stringify(user) : 'User not found';
-  }
-});
-```
-
-### Pattern: Data Processing
-
-Transform and analyze data:
-
-```typescript
-const analyze_text = new Tool('analyze_text', {
-  description: 'Analyze text sentiment and extract keywords',
-  parameters: {
-    text: 'Text to analyze'
-  },
-  func: async (agent, { text }) => {
-    const sentiment = await nlp.sentiment(text);
-    const keywords = await nlp.keywords(text, { limit: 5 });
-
-    return JSON.stringify({
-      sentiment: sentiment.score,
-      keywords: keywords.map(k => k.word)
-    });
-  }
-});
-
-const summarize = new Tool('summarize', {
-  description: 'Generate text summary',
-  parameters: {
-    text: 'Text to summarize',
-    max_length: 'Maximum summary length in words (default: 100)'
-  },
-  func: async (agent, { text, max_length }) => {
-    const summary = await nlp.summarize(text, {
-      maxLength: parseInt(max_length || '100')
-    });
-    return summary;
-  }
-});
-```
-
-### Pattern: File Operations
-
-Handle file system tasks:
-
-```typescript
-const read_file = new Tool('read_file', {
-  description: 'Read file contents',
-  parameters: {
-    path: 'File path to read'
-  },
-  func: async (agent, { path }) => {
-    try {
-      const content = await fs.readFile(path, 'utf-8');
-      return content;
-    } catch (error) {
-      return `Error reading file: ${error.message}`;
-    }
-  }
-});
-
-const list_directory = new Tool('list_directory', {
-  description: 'List files in directory',
-  parameters: {
-    path: 'Directory path',
-    pattern: 'File pattern to match (optional, e.g., *.js)'
-  },
-  func: async (agent, { path, pattern }) => {
-    const files = await fs.readdir(path);
-    const filtered = pattern
-      ? files.filter(f => minimatch(f, pattern))
-      : files;
-    return JSON.stringify(filtered);
-  }
-});
-```
-
-### Pattern: Tool Composition
-
-Combine multiple operations:
-
-```typescript
-const process_order = new Tool('process_order', {
-  description: 'Process customer order end-to-end',
-  parameters: {
-    order_id: 'Order ID to process',
-    notify_customer: 'Send notification email (true/false)'
-  },
-  func: async (agent, { order_id, notify_customer }) => {
-    // Validate order
-    const order = await db.orders.findById(order_id);
-    if (!order) return 'Order not found';
-
-    // Process payment
-    const payment = await stripe.charge(order.total, order.payment_method);
-    if (!payment.success) return 'Payment failed';
-
-    // Update inventory
-    await inventory.decrement(order.items);
-
-    // Send notification
-    if (notify_customer === 'true') {
-      await email.send(order.customer_email, 'Order Confirmed', {
-        order_id,
-        total: order.total
-      });
-    }
-
-    return `Order ${order_id} processed successfully`;
-  }
-});
-```
-
-## Error Handling
-
-Tools should handle errors gracefully:
-
-```typescript
-const safe_api_call = new Tool('api_call', {
-  description: 'Make API call with error handling',
-  parameters: {
-    endpoint: 'API endpoint URL',
-    method: 'HTTP method (GET, POST, etc.)'
-  },
-  func: async (agent, { endpoint, method }) => {
-    try {
-      const response = await fetch(endpoint, { method });
-
-      if (!response.ok) {
-        return JSON.stringify({
-          error: true,
-          status: response.status,
-          message: response.statusText
-        });
-      }
-
-      const data = await response.json();
-      return JSON.stringify({ success: true, data });
-
-    } catch (error) {
-      return JSON.stringify({
-        error: true,
-        message: error.message
-      });
-    }
-  }
-});
-```
-
-## Best Practices
-
-### 1. Clear Naming
-
-Use descriptive, action-oriented names:
-
-```typescript
-// ✅ Good: Clear action names
-new Tool('search_customers', ...);
-new Tool('create_invoice', ...);
-new Tool('send_email', ...);
-
-// ❌ Bad: Vague names
-new Tool('search', ...);
-new Tool('create', ...);
-new Tool('send', ...);
-```
-
-### 2. Detailed Descriptions
-
-Write helpful descriptions for users and AI:
-
-```typescript
-// ✅ Good: Detailed description
-new Tool('search_products', {
-  description: 'Search product catalog by name, category, or SKU. Returns product details including price, stock, and images.',
-  parameters: {...},
-  func: ...
-});
-
-// ❌ Bad: Vague description
-new Tool('search_products', {
-  description: 'Search products',
-  parameters: {...},
-  func: ...
-});
-```
-
-### 3. Parameter Documentation
-
-Document each parameter clearly:
-
-```typescript
-// ✅ Good: Clear parameter descriptions
-parameters: {
-  query: 'Search query string (e.g., "red shoes")',
-  max_price: 'Maximum price in USD (optional, e.g., "99.99")',
-  category: 'Product category filter (optional, e.g., "electronics")'
-}
-
-// ❌ Bad: Minimal descriptions
-parameters: {
-  query: 'Query',
-  max_price: 'Price',
-  category: 'Category'
-}
-```
-
-### 4. Return Structured Data
-
-Return JSON for complex data:
-
-```typescript
-// ✅ Good: Structured JSON response
-func: async (agent, { user_id }) => {
-  const user = await db.findUser(user_id);
-  return JSON.stringify({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    created_at: user.created_at
-  });
-}
-
-// ❌ Bad: Unstructured string
-func: async (agent, { user_id }) => {
-  const user = await db.findUser(user_id);
-  return `User: ${user.name}, Email: ${user.email}`;
-}
-```
-
-### 5. Async for I/O
-
-Use async for operations involving I/O:
-
-```typescript
-// ✅ Good: Async for database/API calls
-const db_tool = new Tool('query_db', {
-  description: 'Query database',
-  func: async (agent, { query }) => {
-    const results = await db.query(query);
-    return JSON.stringify(results);
-  }
-});
-
-// ❌ Bad: Sync with blocking operations
-const bad_tool = new Tool('query_db', {
-  description: 'Query database',
-  func: (agent, { query }) => {
-    const results = db.querySync(query);  // Blocks event loop
-    return JSON.stringify(results);
-  }
-});
-```
-
-### 6. Validate Inputs
-
-Validate and sanitize parameters:
-
-```typescript
-const validated_tool = new Tool('update_user', {
-  description: 'Update user information',
-  parameters: {
-    user_id: 'User ID (numeric)',
-    email: 'New email address'
-  },
-  func: async (agent, { user_id, email }) => {
-    // Validate user_id
-    const id = parseInt(user_id);
-    if (isNaN(id) || id <= 0) {
-      return 'Error: Invalid user ID';
-    }
-
-    // Validate email
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      return 'Error: Invalid email format';
-    }
-
-    // Process
-    await db.users.update(id, { email });
-    return 'User updated successfully';
-  }
-});
 ```
 
 ## Type Safety
@@ -653,67 +303,9 @@ const search_tool = new Tool<SearchParams>('search', {
     category: 'Category filter'
   },
   func: (agent, { query, limit, category }) => {
-    // TypeScript knows the parameter types
     const num_limit = parseInt(limit);
     return database.search(query, num_limit, category);
   }
-});
-
-// Type inference
-const inferred = new Tool('inferred', {
-  description: 'Inferred params',
-  parameters: {
-    foo: 'Foo param',
-    bar: 'Bar param'
-  },
-  func: (agent, { foo, bar }) => {
-    // TypeScript infers foo and bar as strings
-    return `${foo} ${bar}`;
-  }
-});
-```
-
-## Testing Tools
-
-Test tools independently:
-
-```typescript
-import { Tool } from '@arcaelas/agent';
-
-describe('calculator_tool', () => {
-  const calculator = new Tool('calculate', {
-    description: 'Basic calculator',
-    parameters: {
-      operation: 'Math operation',
-      a: 'First number',
-      b: 'Second number'
-    },
-    func: (agent, { operation, a, b }) => {
-      const num_a = parseFloat(a);
-      const num_b = parseFloat(b);
-
-      switch (operation) {
-        case '+': return (num_a + num_b).toString();
-        case '-': return (num_a - num_b).toString();
-        default: return 'Invalid operation';
-      }
-    }
-  });
-
-  test('addition', () => {
-    const result = calculator.func(agent, { operation: '+', a: '5', b: '3' });
-    expect(result).toBe('8');
-  });
-
-  test('subtraction', () => {
-    const result = calculator.func(agent, { operation: '-', a: '10', b: '4' });
-    expect(result).toBe('6');
-  });
-
-  test('invalid operation', () => {
-    const result = calculator.func(agent, { operation: '%', a: '5', b: '2' });
-    expect(result).toBe('Invalid operation');
-  });
 });
 ```
 
@@ -722,8 +314,7 @@ describe('calculator_tool', () => {
 - **[Context](context.md)** - Manages tools in hierarchical contexts
 - **[Agent](agent.md)** - Executes tools during conversations
 - **[Built-in Tools](built-in-tools.md)** - Pre-built RemoteTool and TimeTool
-- **[Custom Tools Example](../examples/custom-tools.md)** - Practical implementations
 
 ---
 
-**Next:** Learn about [Rule →](rule.md)
+**Next:** Learn about [Rule ->](rule.md)

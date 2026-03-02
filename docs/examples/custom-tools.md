@@ -6,8 +6,26 @@ This example demonstrates how to create custom tools for your agents, from simpl
 
 Tools extend agent capabilities by providing access to external data, APIs, and custom logic. The @arcaelas/agent library supports two types of tools:
 
-- **Simple Tools** - Basic function with string input
-- **Advanced Tools** - Complex functions with typed parameters and descriptions
+- **Simple Tools** - Basic function with `(agent: Agent, input: string)` signature
+- **Advanced Tools** - Functions with typed parameters via `ToolOptions`
+
+## Tool Signatures
+
+```typescript
+// Simple tool: new Tool(name, handler)
+// handler: (agent: Agent, input: string) => any
+const simple = new Tool('my_tool', (agent, input: string) => { ... });
+
+// Advanced tool: new Tool(name, options)
+// options.func: (agent: Agent, params: T) => any
+const advanced = new Tool('my_tool', {
+  description: 'What this tool does',
+  parameters: { key: 'Description of key' },
+  func: (agent, { key }) => { ... }
+});
+```
+
+In both cases, `agent` (the `Agent` instance) is always the first parameter.
 
 ## Simple Tool Example
 
@@ -16,11 +34,9 @@ Tools extend agent capabilities by providing access to external data, APIs, and 
 ```typescript
 import { Agent, Tool } from '@arcaelas/agent';
 
-// Simple tool with string input
+// Simple tool - receives (agent: Agent, input: string)
 const weather_tool = new Tool('get_weather', (agent, input: string) => {
-  // input contains the natural language request
-  // In production, you would call a real weather API
-  return `Weather for ${input}: Sunny, 24°C`;
+  return `Weather for ${input}: Sunny, 24C`;
 });
 
 const agent = new Agent({
@@ -32,14 +48,12 @@ const agent = new Agent({
 
 // Agent will automatically call the tool when needed
 const [messages, success] = await agent.call("What's the weather in Madrid?");
-// Agent calls weather_tool automatically
-// Returns: "Weather for Madrid: Sunny, 24°C"
 ```
 
 ### Timestamp Tool
 
 ```typescript
-const timestamp_tool = new Tool('get_current_time', (agent) => {
+const timestamp_tool = new Tool('get_current_time', (agent, input: string) => {
   return new Date().toISOString();
 });
 ```
@@ -68,11 +82,9 @@ const search_customers = new Tool('search_customers', {
     status: 'Filter by customer status: active, inactive, or all'
   },
   func: async (agent, { query, limit, status }) => {
-    // Parse parameters
     const max_results = limit ? parseInt(limit) : 10;
     const filter_status = status || 'all';
 
-    // Query database (example)
     const results = await database.customers.find({
       $text: { $search: query },
       ...(filter_status !== 'all' && { status: filter_status })
@@ -159,7 +171,8 @@ const calculator = new Tool('calculate', {
 ## Complete Agent with Custom Tools
 
 ```typescript
-import { Agent, Tool } from '@arcaelas/agent';
+import { Agent, Tool, Context } from '@arcaelas/agent';
+import type { Provider, ProviderChunk } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -189,7 +202,7 @@ const weather_tool = new Tool('get_weather', {
       description: data.weather[0].description,
       humidity: data.main.humidity,
       wind_speed: data.wind.speed,
-      units: unit_system === 'metric' ? '°C' : '°F'
+      units: unit_system === 'metric' ? 'C' : 'F'
     });
   }
 });
@@ -220,38 +233,45 @@ const news_tool = new Tool('get_latest_news', {
   }
 });
 
-// Create OpenAI provider with tool support
-const openai_provider = async (ctx) => {
-  return await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: ctx.messages.map(m => ({
-      role: m.role === 'tool' ? 'tool' : m.role,
-      content: m.content || '',
-      ...(m.role === 'tool' && { tool_call_id: m.tool_call_id })
-    })),
-    tools: ctx.tools.map(tool => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: {
-          type: "object",
-          properties: Object.entries(tool.parameters).reduce(
-            (acc, [key, desc]) => ({
-              ...acc,
-              [key]: {
-                type: "string",
-                description: desc
-              }
-            }),
-            {}
-          ),
-          required: Object.keys(tool.parameters)
+// Create OpenAI dual-mode provider with tool support
+const openai_provider: Provider = ((ctx: Context, opts?: { stream: true }) => {
+  const tools_json = ctx.tools.map(t => t.toJSON());
+
+  if (opts?.stream) {
+    return (async function* () {
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4",
+        stream: true,
+        messages: ctx.messages.map(m => m.toJSON()),
+        tools: tools_json
+      });
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta;
+        if (delta?.content) {
+          yield { type: "text_delta", content: delta.content } as ProviderChunk;
+        }
+        if (delta?.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            yield {
+              type: "tool_call_delta",
+              index: tc.index,
+              id: tc.id,
+              name: tc.function?.name,
+              arguments_delta: tc.function?.arguments
+            } as ProviderChunk;
+          }
         }
       }
-    }))
+      yield { type: "finish", finish_reason: "stop" } as ProviderChunk;
+    })();
+  }
+
+  return openai.chat.completions.create({
+    model: "gpt-4",
+    messages: ctx.messages.map(m => m.toJSON()),
+    tools: tools_json
   });
-};
+}) as Provider;
 
 // Create agent with custom tools
 const assistant = new Agent({
@@ -263,7 +283,7 @@ const assistant = new Agent({
 
 // Usage
 async function demo() {
-  // Weather request
+  // Weather request with call()
   const [weather_response, success1] = await assistant.call(
     "What's the weather like in Tokyo?"
   );
@@ -272,13 +292,14 @@ async function demo() {
     console.log(weather_response[weather_response.length - 1].content);
   }
 
-  // News request
-  const [news_response, success2] = await assistant.call(
-    "Show me the latest news about artificial intelligence"
-  );
-
-  if (success2) {
-    console.log(news_response[news_response.length - 1].content);
+  // News request with stream()
+  for await (const chunk of assistant.stream("Show me the latest news about AI")) {
+    if (chunk.role === "assistant") {
+      process.stdout.write(chunk.content);
+    }
+    if (chunk.role === "tool") {
+      console.log(`\n[Tool: ${chunk.name}]: ${chunk.content}`);
+    }
   }
 }
 
@@ -297,37 +318,37 @@ When an agent receives a prompt:
 
 ```
 User: "What's the weather in Paris and latest tech news?"
-   │
-   ▼
-┌─────────────────────┐
-│ Agent receives      │
-│ prompt              │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│ Provider decides:   │
-│ - Use weather_tool  │
-│ - Use news_tool     │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│ Execute tools in    │
-│ parallel:           │
-│ ✓ weather_tool      │
-│ ✓ news_tool         │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│ Provider processes  │
-│ results and         │
-│ generates response  │
-└──────────┬──────────┘
-           │
-           ▼
-User: "Paris: Sunny, 22°C. Latest tech news: [articles]"
+   |
+   v
++---------------------+
+| Agent receives      |
+| prompt              |
++----------+----------+
+           |
+           v
++---------------------+
+| Provider decides:   |
+| - Use weather_tool  |
+| - Use news_tool     |
++----------+----------+
+           |
+           v
++---------------------+
+| Execute tools in    |
+| parallel:           |
+| * weather_tool      |
+| * news_tool         |
++----------+----------+
+           |
+           v
++---------------------+
+| Provider processes  |
+| results and         |
+| generates response  |
++----------+----------+
+           |
+           v
+User: "Paris: Sunny, 22C. Latest tech news: [articles]"
 ```
 
 ## Tool Best Practices
@@ -335,30 +356,32 @@ User: "Paris: Sunny, 22°C. Latest tech news: [articles]"
 ### 1. Clear Descriptions
 
 ```typescript
-// ✅ Good: Clear, specific description
+// Good: Clear, specific description
 const good_tool = new Tool('search_products', {
   description: 'Search e-commerce product catalog by name, category, or SKU',
-  parameters: { ... }
+  parameters: { query: 'Search terms' },
+  func: (agent, { query }) => { ... }
 });
 
-// ❌ Bad: Vague description
+// Bad: Vague description
 const bad_tool = new Tool('search', {
   description: 'Search stuff',
-  parameters: { ... }
+  parameters: { q: 'query' },
+  func: (agent, { q }) => { ... }
 });
 ```
 
 ### 2. Detailed Parameters
 
 ```typescript
-// ✅ Good: Descriptive parameter names and descriptions
+// Good: Descriptive parameter names and descriptions
 parameters: {
   start_date: 'Start date in ISO 8601 format (e.g., 2024-01-01)',
   end_date: 'End date in ISO 8601 format (e.g., 2024-12-31)',
   include_weekends: 'Include weekends in results: true or false (default: true)'
 }
 
-// ❌ Bad: Unclear parameters
+// Bad: Unclear parameters
 parameters: {
   date1: 'date',
   date2: 'date',
@@ -404,7 +427,7 @@ const robust_tool = new Tool('fetch_data', {
 ### 4. Return JSON for Complex Data
 
 ```typescript
-// ✅ Good: Structured JSON response
+// Good: Structured JSON response
 func: async (agent, { query }) => {
   const results = await search(query);
   return JSON.stringify({
@@ -414,7 +437,7 @@ func: async (agent, { query }) => {
   });
 }
 
-// ❌ Bad: Unstructured string
+// Bad: Unstructured string
 func: async (agent, { query }) => {
   const results = await search(query);
   return `Found ${results.length} results: ${results.join(', ')}`;
@@ -424,14 +447,14 @@ func: async (agent, { query }) => {
 ### 5. Async Operations
 
 ```typescript
-// ✅ Good: Proper async/await
+// Good: Proper async/await
 func: async (agent, { url }) => {
   const response = await fetch(url);
   const data = await response.json();
   return JSON.stringify(data);
 }
 
-// ❌ Bad: Unhandled promises
+// Bad: Unhandled promises
 func: (agent, { url }) => {
   fetch(url).then(r => r.json()).then(d => JSON.stringify(d));
   // Returns undefined!
@@ -440,9 +463,11 @@ func: (agent, { url }) => {
 
 ## Tool Testing
 
-Test tools independently:
+Test tools independently. Remember: `tool.func` requires `agent` as first param.
 
 ```typescript
+import { Agent } from '@arcaelas/agent';
+
 // Create tool
 const test_tool = new Tool('my_tool', {
   description: 'Test tool',
@@ -454,14 +479,24 @@ const test_tool = new Tool('my_tool', {
   }
 });
 
-// Test tool function directly
-const result = await test_tool.func({ input: 'test value' });
+// Create a minimal agent for testing
+const agent = new Agent({
+  name: "Test_Agent",
+  description: "Agent for tool testing"
+});
+
+// Test tool function directly - agent is always the first argument
+const result = await test_tool.func(agent, { input: 'test value' });
 console.log(result); // "Processed: test value"
 
 // Verify tool metadata
 console.log(test_tool.name);        // "my_tool"
 console.log(test_tool.description); // "Test tool"
 console.log(test_tool.parameters);  // { input: 'Test input' }
+
+// toJSON() output for provider serialization
+console.log(JSON.stringify(test_tool));
+// { "type": "function", "function": { "name": "my_tool", ... } }
 ```
 
 ## Built-in Tools
@@ -479,8 +514,10 @@ const http_tool = new RemoteTool();
 
 // Use in agent
 const agent = new Agent({
+  name: "HTTP_Agent",
+  description: "Agent with HTTP capabilities",
   tools: [http_tool],
-  // ...
+  providers: [openai_provider]
 });
 
 // Agent can now make HTTP requests automatically
@@ -499,7 +536,7 @@ const time_tool = new TimeTool();
 // Agent can now handle timezone conversions and date queries
 ```
 
-**[Learn more about built-in tools →](../api/built-in-tools.md)**
+**[Learn more about built-in tools](../api/built-in-tools.md)**
 
 ## Next Steps
 
@@ -509,4 +546,4 @@ const time_tool = new TimeTool();
 
 ---
 
-**[← Back to Examples](../index.md#examples)**
+**[Back to Examples](../index.md#examples)**

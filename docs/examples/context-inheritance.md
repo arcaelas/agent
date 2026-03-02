@@ -6,7 +6,7 @@ This example demonstrates hierarchical context management with automatic inherit
 
 Context inheritance allows you to:
 - Share configuration across multiple agents
-- Create organizational hierarchies (company → department → team)
+- Create organizational hierarchies (company -> department -> team)
 - Override inherited values when needed
 - Maintain consistency while allowing customization
 
@@ -16,6 +16,7 @@ Context inheritance allows you to:
 import { Agent, Context, Metadata, Rule, Tool } from '@arcaelas/agent';
 
 // Parent context - company-wide settings
+// Context constructor uses "context" (singular) for parent contexts
 const company_context = new Context({
   metadata: new Metadata()
     .set("organization", "Acme Corp")
@@ -27,8 +28,9 @@ const company_context = new Context({
 });
 
 // Child context - inherits from parent
+// Uses "context" (singular), NOT "contexts"
 const sales_context = new Context({
-  context: company_context,  // Inheritance
+  context: company_context,  // singular
   metadata: new Metadata()
     .set("department", "Sales")
     .set("region", "EMEA"),
@@ -38,10 +40,11 @@ const sales_context = new Context({
 });
 
 // Agent using child context
+// Agent constructor uses "contexts" (plural)
 const sales_agent = new Agent({
   name: "Sales_Agent",
   description: "EMEA sales specialist",
-  contexts: sales_context,
+  contexts: sales_context,  // plural
   providers: [openai_provider]
 });
 
@@ -62,7 +65,7 @@ const global_context = new Context({
   rules: [new Rule("Follow data protection regulations")]
 });
 
-// Level 2: Department
+// Level 2: Department (context: singular)
 const engineering_context = new Context({
   context: global_context,
   metadata: new Metadata()
@@ -71,7 +74,7 @@ const engineering_context = new Context({
   tools: [github_tool, jira_tool]
 });
 
-// Level 3: Team
+// Level 3: Team (context: singular)
 const backend_team_context = new Context({
   context: engineering_context,
   metadata: new Metadata()
@@ -80,7 +83,7 @@ const backend_team_context = new Context({
   tools: [database_tool, api_tool]
 });
 
-// Agent at deepest level
+// Agent at deepest level (contexts: plural)
 const backend_agent = new Agent({
   name: "Backend_Engineer_Agent",
   description: "Backend engineering specialist",
@@ -123,33 +126,34 @@ console.log(agent.metadata.get("timeout"));  // "30000" (inherited)
 
 ## Tool Deduplication
 
-Tools with the same name are automatically deduplicated, with local tools taking precedence:
+Tools with the same name are automatically deduplicated. When a child context defines a tool with the same name as a parent, the child version wins:
 
 ```typescript
 const parent_tools = [
-  new Tool('search', (agent) => "Parent search implementation")
+  new Tool('search', (agent, input: string) => "Parent search implementation")
 ];
 
 const child_tools = [
-  new Tool('search', (agent) => "Child search implementation (enhanced)"),
-  new Tool('analyze', (agent) => "Analysis tool")
+  new Tool('search', (agent, input: string) => "Child search implementation (enhanced)"),
+  new Tool('analyze', (agent, input: string) => "Analysis tool")
 ];
 
 const parent_ctx = new Context({ tools: parent_tools });
 const child_ctx = new Context({
-  context: parent_ctx,
+  context: parent_ctx,  // singular
   tools: child_tools
 });
 
 const agent = new Agent({
   name: "Tool_Agent",
   description: "Agent with deduplicated tools",
-  contexts: child_ctx,
+  contexts: child_ctx,  // plural
   providers: [openai_provider]
 });
 
 console.log(agent.tools.length); // 2 (search from child, analyze from child)
 // 'search' from parent is replaced by child's version
+// Deduplication works by tool name: last definition wins
 ```
 
 ## Enterprise Pattern
@@ -170,7 +174,7 @@ const acme_global = new Context({
   tools: [logging_tool, analytics_tool]
 });
 
-// Regional contexts
+// Regional contexts (context: singular)
 const acme_emea = new Context({
   context: acme_global,
   metadata: new Metadata()
@@ -187,7 +191,7 @@ const acme_americas = new Context({
   rules: [new Rule("Apply US data protection standards")]
 });
 
-// Department contexts
+// Department contexts (context: singular)
 const emea_sales = new Context({
   context: acme_emea,
   metadata: new Metadata()
@@ -202,7 +206,7 @@ const emea_support = new Context({
   tools: [ticketing_tool, knowledge_base_tool]
 });
 
-// Create specialized agents
+// Create specialized agents (contexts: plural)
 const sales_agent_uk = new Agent({
   name: "UK_Sales_Agent",
   description: "Sales agent for UK market",
@@ -240,7 +244,7 @@ function create_user_context(user_profile) {
   });
 
   return new Context({
-    context: base_context,
+    context: base_context,  // singular
     metadata: new Metadata()
       .set("user_id", user_profile.id)
       .set("user_name", user_profile.name)
@@ -256,36 +260,39 @@ function create_personalized_agent(user_profile) {
   return new Agent({
     name: `Agent_${user_profile.id}`,
     description: `Personalized agent for ${user_profile.name}`,
-    contexts: user_context,
+    contexts: user_context,  // plural
     providers: [openai_provider]
   });
 }
 
 // Usage
-const user = { id: "123", name: "John", plan: "premium", preferences: {...} };
+const user = { id: "123", name: "John", plan: "premium", preferences: {} };
 const agent = create_personalized_agent(user);
 ```
+
+## Key Naming Convention
+
+| Class     | Property    | Accepts                    |
+|-----------|-------------|----------------------------|
+| `Context` | `context`   | `Context \| Context[]`     |
+| `Agent`   | `contexts`  | `Context \| Context[]`     |
 
 ## Best Practices
 
 ### 1. Layer Contexts by Scope
 
-```typescript
-// ✅ Good: Clear hierarchy
-global_ctx → regional_ctx → department_ctx → team_ctx
-
-// ❌ Bad: Flat structure
-individual_context_for_each_agent
+```
+global_ctx -> regional_ctx -> department_ctx -> team_ctx
 ```
 
 ### 2. Use Meaningful Metadata Keys
 
 ```typescript
-// ✅ Good: Descriptive keys
+// Good: Descriptive keys
 metadata.set("user_subscription_tier", "premium")
 metadata.set("feature_flags", JSON.stringify({...}))
 
-// ❌ Bad: Vague keys
+// Bad: Vague keys
 metadata.set("tier", "p")
 metadata.set("flags", "...")
 ```
@@ -294,7 +301,7 @@ metadata.set("flags", "...")
 
 ```typescript
 /**
- * Inheritance: global_ctx → region_ctx → dept_ctx
+ * Inheritance: global_ctx -> region_ctx -> dept_ctx
  * - global_ctx: Company-wide settings
  * - region_ctx: Regional compliance & timezone
  * - dept_ctx: Department-specific tools
@@ -313,4 +320,4 @@ const dept_ctx = new Context({
 
 ---
 
-**[← Back to Examples](../index.md#examples)**
+**[Back to Examples](../index.md#examples)**

@@ -2,9 +2,86 @@
 
 @arcaelas/agent includes two production-ready tools: **RemoteTool** for HTTP requests and **TimeTool** for time/date operations.
 
+## TimeTool
+
+**TimeTool** provides current date and time with timezone support. It extends `Tool` directly.
+
+### Constructor
+
+```typescript
+new TimeTool(options?: { time_zone?: string })
+```
+
+The `options` parameter defaults to `{}`. The tool name is hardcoded as `"get_time"`.
+
+**Options:**
+- **time_zone**: Optional IANA timezone string (e.g., `"Europe/Madrid"`). Used as fallback when the AI does not provide a timezone in the tool call arguments.
+
+### Internal Behavior
+
+The constructor calls `super("get_time", { ... })` with:
+
+- **description**: `"Obtener la fecha y hora actual del sistema"`
+- **parameters**: `{ time_zone: "Opcional - Zona horaria IANA para obtener la hora (ej: Europe/Madrid). Si no se proporciona, usa la zona horaria del sistema" }`
+- **func**: Receives `(agent: Agent, args: { time_zone: string })`. The timezone resolution order is:
+  1. `args.time_zone` (provided by the AI in the tool call)
+  2. `options.time_zone` (configured at construction)
+  3. `Intl.DateTimeFormat().resolvedOptions().timeZone` (system timezone)
+
+Returns `new Date().toLocaleString("en-US", { timeZone })`.
+
+### Examples
+
+**System Timezone:**
+
+```typescript
+import { TimeTool } from '@arcaelas/agent';
+
+const time_tool = new TimeTool({});
+// Tool name: "get_time"
+// Uses system timezone as final fallback
+```
+
+**Specific Timezone:**
+
+```typescript
+const tokyo_time = new TimeTool({ time_zone: "Asia/Tokyo" });
+const madrid_time = new TimeTool({ time_zone: "Europe/Madrid" });
+const utc_time = new TimeTool({ time_zone: "UTC" });
+```
+
+**Usage in Agent:**
+
+```typescript
+const agent = new Agent({
+  name: "Time_Assistant",
+  description: "Provides time information",
+  tools: [new TimeTool({ time_zone: "Europe/Madrid" })],
+  providers: [openai_provider]
+});
+
+await agent.call("What time is it?");
+// The AI can call get_time with or without a time_zone argument.
+// If no time_zone is provided by the AI, falls back to "Europe/Madrid".
+```
+
+### Output Format
+
+All times are returned in `en-US` locale format regardless of timezone:
+
+```
+"MM/DD/YYYY, HH:MM:SS AM/PM"
+
+Examples:
+- "12/27/2024, 3:45:30 PM"
+- "01/01/2025, 12:00:00 AM"
+```
+
+---
+
 ## RemoteTool
 
-**RemoteTool** wraps HTTP API calls as agent tools. Supports GET, POST, PUT, DELETE, and PATCH methods.
+**RemoteTool** wraps HTTP API calls as agent tools. It extends `Tool` directly. Supports GET, POST, PUT, DELETE, and PATCH methods.
 
 ### Constructor
 
@@ -15,7 +92,7 @@ new RemoteTool(name: string, options: RemoteToolOptions)
 ### RemoteToolOptions
 
 ```typescript
-interface RemoteToolOptions {
+interface RemoteToolOptions extends Omit<ToolOptions, "func"> {
   description: string;
   parameters?: Record<string, string>;
   http: {
@@ -25,6 +102,21 @@ interface RemoteToolOptions {
   };
 }
 ```
+
+The `func` property is omitted because `RemoteTool` generates its own HTTP function internally.
+
+### HTTP Method Behavior
+
+The internal function handles parameters differently based on the HTTP method:
+
+- **GET**: Parameters are sent as URL query string via `URLSearchParams`. Example: `https://api.example.com/data?city=Madrid&units=celsius`. No request body.
+- **POST, PUT, PATCH**: Parameters are sent as JSON in the request body (`JSON.stringify(args)`).
+- **DELETE**: Parameters are sent as JSON in the request body (same as POST/PUT/PATCH -- not as query parameters).
+
+All methods:
+- Return the response body as plain text on success (`response.text()`)
+- On HTTP error (non-2xx): return `JSON.stringify({ error: true, status, message: statusText })`
+- On fetch exception: return `JSON.stringify({ error: true, message: error.message })`
 
 ### Examples
 
@@ -48,6 +140,7 @@ const weather_api = new RemoteTool("get_weather", {
     url: "https://api.weather.com/v1/current"
   }
 });
+// GET https://api.weather.com/v1/current?city=Madrid&units=celsius
 ```
 
 **POST Request:**
@@ -69,6 +162,26 @@ const create_ticket = new RemoteTool("create_support_ticket", {
     url: "https://support.example.com/api/tickets"
   }
 });
+// POST body: {"subject":"...","description":"...","priority":"high"}
+```
+
+**DELETE Request:**
+
+```typescript
+const delete_item = new RemoteTool("delete_item", {
+  description: "Delete an item by ID",
+  parameters: {
+    item_id: "ID of the item to delete"
+  },
+  http: {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${process.env.API_TOKEN}`
+    },
+    url: "https://api.example.com/items"
+  }
+});
+// DELETE body: {"item_id":"123"} (NOT as query parameters)
 ```
 
 **Usage in Agent:**
@@ -82,137 +195,9 @@ const agent = new Agent({
 });
 
 await agent.call("What's the weather in Madrid?");
-// Agent automatically calls weather_api tool with { city: "Madrid", units: "celsius" }
 ```
-
-### Behavior Notes
-
-- **GET/DELETE**: Parameters are sent as URL query string (e.g., `?city=Madrid&units=celsius`)
-- **POST/PUT/PATCH**: Parameters are sent as JSON in request body
-- Returns response as plain text
-- Automatic error handling by agent
-- Headers support dynamic values from environment variables
-
-## TimeTool
-
-**TimeTool** provides current date and time with timezone support.
-
-### Constructor
-
-```typescript
-new TimeTool(options?: { time_zone?: string })
-```
-
-**Options:**
-- **time_zone**: Optional IANA timezone (e.g., "Europe/Madrid", "America/New_York", "Asia/Tokyo")
-
-### Examples
-
-**System Timezone:**
-
-```typescript
-import { TimeTool } from '@arcaelas/agent';
-
-const time_tool = new TimeTool({});
-
-// Returns current time in system timezone
-// Format: "12/27/2024, 3:45:30 PM"
-```
-
-**Specific Timezone:**
-
-```typescript
-const tokyo_time = new TimeTool({
-  time_zone: "Asia/Tokyo"
-});
-
-const madrid_time = new TimeTool({
-  time_zone: "Europe/Madrid"
-});
-
-const utc_time = new TimeTool({
-  time_zone: "UTC"
-});
-```
-
-**Usage in Agent:**
-
-```typescript
-const agent = new Agent({
-  name: "Time_Assistant",
-  description: "Provides time information",
-  tools: [
-    new TimeTool({ time_zone: "Europe/Madrid" })
-  ],
-  providers: [openai_provider]
-});
-
-await agent.call("What time is it in Madrid?");
-// Agent calls get_time tool, returns: "12/27/2024, 2:45:30 PM"
-```
-
-**Multi-Timezone Agent:**
-
-```typescript
-const world_clock_agent = new Agent({
-  name: "World_Clock",
-  description: "Provides time in multiple timezones",
-  tools: [
-    new TimeTool({ time_zone: "America/New_York" }),
-    new TimeTool({ time_zone: "Europe/London" }),
-    new TimeTool({ time_zone: "Asia/Tokyo" })
-  ],
-  providers: [openai_provider]
-});
-```
-
-### Output Format
-
-All times are returned in `en-US` locale format regardless of timezone:
-
-```
-"MM/DD/YYYY, HH:MM:SS AM/PM"
-
-Examples:
-- "12/27/2024, 3:45:30 PM"
-- "01/01/2025, 12:00:00 AM"
-- "06/15/2024, 11:23:45 PM"
-```
-
-### Supported Timezones
-
-Uses IANA timezone database. Common timezones:
-
-- **Americas**: `America/New_York`, `America/Los_Angeles`, `America/Chicago`, `America/Toronto`, `America/Sao_Paulo`
-- **Europe**: `Europe/London`, `Europe/Paris`, `Europe/Berlin`, `Europe/Madrid`, `Europe/Rome`
-- **Asia**: `Asia/Tokyo`, `Asia/Shanghai`, `Asia/Dubai`, `Asia/Kolkata`, `Asia/Singapore`
-- **Pacific**: `Pacific/Auckland`, `Australia/Sydney`, `Pacific/Honolulu`
-- **Special**: `UTC`
-
-[Full list of IANA timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
 
 ## Usage Patterns
-
-### Pattern: API Integration
-
-```typescript
-const github_api = new RemoteTool("search_github_repos", {
-  description: "Search GitHub repositories",
-  parameters: {
-    query: "Search query",
-    language: "Programming language filter",
-    min_stars: "Minimum number of stars"
-  },
-  http: {
-    method: "GET",
-    headers: {
-      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
-      "Accept": "application/vnd.github.v3+json"
-    },
-    url: "https://api.github.com/search/repositories"
-  }
-});
-```
 
 ### Pattern: Multi-Service Agent
 
@@ -221,32 +206,10 @@ const multi_service_agent = new Agent({
   name: "Multi_Service_Assistant",
   description: "Integrates multiple external services",
   tools: [
-    new RemoteTool("get_weather", {...}),
-    new RemoteTool("search_news", {...}),
-    new RemoteTool("create_task", {...}),
+    new RemoteTool("get_weather", { ... }),
+    new RemoteTool("search_news", { ... }),
+    new RemoteTool("create_task", { ... }),
     new TimeTool({})
-  ],
-  providers: [openai_provider]
-});
-```
-
-### Pattern: Time-Aware Agents
-
-```typescript
-const business_hours_agent = new Agent({
-  name: "Business_Hours_Assistant",
-  description: "Provides time-aware responses",
-  tools: [
-    new TimeTool({ time_zone: "America/New_York" })
-  ],
-  rules: [
-    new Rule("Inform about business hours", {
-      when: async (agent) => {
-        // Agent can use time tool to check current time
-        const hour = new Date().getHours();
-        return hour < 9 || hour > 17;
-      }
-    })
   ],
   providers: [openai_provider]
 });
@@ -257,7 +220,7 @@ const business_hours_agent = new Agent({
 ### 1. Secure API Keys
 
 ```typescript
-// ✅ Good: Use environment variables
+// Use environment variables
 const secure_tool = new RemoteTool("api_call", {
   description: "Make API call",
   http: {
@@ -268,24 +231,11 @@ const secure_tool = new RemoteTool("api_call", {
     url: process.env.API_URL!
   }
 });
-
-// ❌ Bad: Hardcode credentials
-const insecure_tool = new RemoteTool("api_call", {
-  description: "Make API call",
-  http: {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer sk-hardcoded-key-12345"  // Never do this!
-    },
-    url: "https://api.example.com"
-  }
-});
 ```
 
 ### 2. Clear Parameter Descriptions
 
 ```typescript
-// ✅ Good: Detailed parameter descriptions
 new RemoteTool("search_products", {
   description: "Search product catalog with filters",
   parameters: {
@@ -293,69 +243,7 @@ new RemoteTool("search_products", {
     category: "Product category ID (optional, e.g., 'electronics')",
     max_price: "Maximum price in USD (optional, e.g., '99.99')"
   },
-  http: {...}
-});
-
-// ❌ Bad: Vague descriptions
-new RemoteTool("search_products", {
-  description: "Search",
-  parameters: {
-    query: "Query",
-    category: "Category",
-    max_price: "Price"
-  },
-  http: {...}
-});
-```
-
-### 3. Use Appropriate HTTP Methods
-
-```typescript
-// ✅ Good: GET for queries
-new RemoteTool("get_user", {
-  description: "Retrieve user information",
-  http: { method: "GET", ... }
-});
-
-// ✅ Good: POST for creation
-new RemoteTool("create_user", {
-  description: "Create new user",
-  http: { method: "POST", ... }
-});
-
-// ✅ Good: PUT/PATCH for updates
-new RemoteTool("update_user", {
-  description: "Update user information",
-  http: { method: "PATCH", ... }
-});
-
-// ✅ Good: DELETE for removal
-new RemoteTool("delete_user", {
-  description: "Delete user account",
-  http: { method: "DELETE", ... }
-});
-```
-
-## Type Safety
-
-Both tools are fully typed with TypeScript:
-
-```typescript
-import { RemoteTool, TimeTool } from '@arcaelas/agent';
-
-// Type-safe RemoteTool
-const api_tool: RemoteTool = new RemoteTool("api_call", {
-  description: "Call external API",
-  http: {
-    method: "POST",  // ✅ Type-checked: only valid HTTP methods
-    headers: { "Content-Type": "application/json" },
-    url: "https://api.example.com"
-  }
-});
-
-// Type-safe TimeTool
-const time_tool: TimeTool = new TimeTool({
-  time_zone: "Europe/Madrid"  // ✅ String type, validated at runtime
+  http: { ... }
 });
 ```
 
@@ -363,8 +251,6 @@ const time_tool: TimeTool = new TimeTool({
 
 - **[Tool](tool.md)** - Base Tool class
 - **[Agent](agent.md)** - Uses tools for capabilities
-- **[Custom Tools Example](../examples/custom-tools.md)** - Creating custom tools
-- **[API Integration](../examples/advanced-patterns.md#api-integration)** - Advanced patterns
 
 ---
 

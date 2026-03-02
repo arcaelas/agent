@@ -95,17 +95,29 @@ const supervisor = new Agent({
   name: "Supervisor",
   description: "Coordinates specialized agents for complex tasks",
   tools: [
-    new Tool('delegate_to_researcher', async (agent, { query }) => {
-      const [msgs, ok] = await research_agent.call(query);
-      return ok ? msgs[msgs.length - 1].content : "Research failed";
+    new Tool('delegate_to_researcher', {
+      description: 'Delegate research task to the research agent',
+      parameters: { query: 'The research query' },
+      func: async (agent, { query }) => {
+        const [msgs, ok] = await research_agent.call(query);
+        return ok ? msgs[msgs.length - 1].content : "Research failed";
+      }
     }),
-    new Tool('delegate_to_analyst', async (agent, { data }) => {
-      const [msgs, ok] = await analyzer_agent.call(data);
-      return ok ? msgs[msgs.length - 1].content : "Analysis failed";
+    new Tool('delegate_to_analyst', {
+      description: 'Delegate analysis task to the analyst agent',
+      parameters: { data: 'The data to analyze' },
+      func: async (agent, { data }) => {
+        const [msgs, ok] = await analyzer_agent.call(data);
+        return ok ? msgs[msgs.length - 1].content : "Analysis failed";
+      }
     }),
-    new Tool('delegate_to_writer', async (agent, { content }) => {
-      const [msgs, ok] = await writer_agent.call(content);
-      return ok ? msgs[msgs.length - 1].content : "Writing failed";
+    new Tool('delegate_to_writer', {
+      description: 'Delegate writing task to the writer agent',
+      parameters: { content: 'The content brief' },
+      func: async (agent, { content }) => {
+        const [msgs, ok] = await writer_agent.call(content);
+        return ok ? msgs[msgs.length - 1].content : "Writing failed";
+      }
     })
   ],
   providers: [openai_provider]
@@ -164,9 +176,9 @@ class StatefulAgent {
 }
 
 const stateful = new StatefulAgent();
-await stateful.chat("Hello");           // state: greeting → gathering_info
-await stateful.chat("I need help with..."); // state: gathering_info → processing
-await stateful.chat("Thanks!");         // state: processing → delivering_result
+await stateful.chat("Hello");           // state: greeting -> gathering_info
+await stateful.chat("I need help with..."); // state: gathering_info -> processing
+await stateful.chat("Thanks!");         // state: processing -> delivering_result
 await stateful.chat("Goodbye");         // state: closing
 ```
 
@@ -213,29 +225,43 @@ await system.trigger('system_alert', { message: 'High memory usage detected' });
 Combine simple tools into complex workflows:
 
 ```typescript
-const fetch_tool = new Tool('fetch_url', async (agent, { url }) => {
-  const response = await fetch(url);
-  return await response.text();
+const fetch_tool = new Tool('fetch_url', {
+  description: 'Fetch content from a URL',
+  parameters: { url: 'The URL to fetch' },
+  func: async (agent, { url }) => {
+    const response = await fetch(url);
+    return await response.text();
+  }
 });
 
-const parse_tool = new Tool('parse_html', async (agent, { html }) => {
-  // Parse HTML and extract structured data
-  return JSON.stringify({ title: "...", content: "..." });
+const parse_tool = new Tool('parse_html', {
+  description: 'Parse HTML and extract structured data',
+  parameters: { html: 'HTML content to parse' },
+  func: async (agent, { html }) => {
+    return JSON.stringify({ title: "...", content: "..." });
+  }
 });
 
-const summarize_tool = new Tool('summarize_text', async (agent, { text }) => {
-  // Use another agent for summarization
-  const [msgs, ok] = await summary_agent.call(`Summarize: ${text}`);
-  return ok ? msgs[msgs.length - 1].content : "Failed to summarize";
+const summarize_tool = new Tool('summarize_text', {
+  description: 'Summarize text content',
+  parameters: { text: 'Text to summarize' },
+  func: async (agent, { text }) => {
+    const [msgs, ok] = await summary_agent.call(`Summarize: ${text}`);
+    return ok ? msgs[msgs.length - 1].content : "Failed to summarize";
+  }
 });
 
-// Complex tool that combines others
-const web_research_tool = new Tool('research_url', async (agent, { url }) => {
-  // Fetch → Parse → Summarize
-  const html = await fetch_tool.func(agent, { url });
-  const data = await parse_tool.func(agent, { html });
-  const summary = await summarize_tool.func(agent, { text: data });
-  return summary;
+// Complex tool that composes others
+// Note: tool.func receives (agent, params) - agent is always the first argument
+const web_research_tool = new Tool('research_url', {
+  description: 'Fetch, parse, and summarize a URL',
+  parameters: { url: 'The URL to research' },
+  func: async (agent, { url }) => {
+    const html = await fetch_tool.func(agent, { url });
+    const data = await parse_tool.func(agent, { html });
+    const summary = await summarize_tool.func(agent, { text: data });
+    return summary;
+  }
 });
 
 const research_agent = new Agent({
@@ -304,37 +330,61 @@ class PersistentAgent {
 
 ## Rate Limiting and Throttling
 
-Control request frequency:
+Control request frequency. The provider must be dual-mode (handle the optional `opts` second arg):
 
 ```typescript
+import type { Provider, ChatCompletionResponse, ProviderChunk } from '@arcaelas/agent';
+
 class ThrottledProvider {
   private last_call: number = 0;
   private min_interval: number = 1000; // 1 second between calls
 
-  async provider(ctx: Context): Promise<ChatCompletionResponse> {
-    const now = Date.now();
-    const elapsed = now - this.last_call;
+  provider: Provider = ((ctx: Context, opts?: { stream: true }) => {
+    const throttle = async () => {
+      const now = Date.now();
+      const elapsed = now - this.last_call;
+      if (elapsed < this.min_interval) {
+        await new Promise(resolve =>
+          setTimeout(resolve, this.min_interval - elapsed)
+        );
+      }
+      this.last_call = Date.now();
+    };
 
-    if (elapsed < this.min_interval) {
-      await new Promise(resolve =>
-        setTimeout(resolve, this.min_interval - elapsed)
-      );
+    if (opts?.stream) {
+      const self = this;
+      return (async function* () {
+        await throttle();
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4",
+          stream: true,
+          messages: ctx.messages.map(m => m.toJSON())
+        });
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta;
+          if (delta?.content) {
+            yield { type: "text_delta", content: delta.content } as ProviderChunk;
+          }
+        }
+        yield { type: "finish", finish_reason: "stop" } as ProviderChunk;
+      })();
     }
 
-    this.last_call = Date.now();
-
-    return await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
-    });
-  }
+    return (async () => {
+      await throttle();
+      return await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: ctx.messages.map(m => m.toJSON())
+      });
+    })();
+  }) as Provider;
 }
 
 const throttled = new ThrottledProvider();
 const agent = new Agent({
   name: "Rate_Limited_Agent",
   description: "Agent with rate limiting",
-  providers: [throttled.provider.bind(throttled)]
+  providers: [throttled.provider]
 });
 ```
 
@@ -385,9 +435,13 @@ class CircuitBreaker {
 }
 
 const breaker = new CircuitBreaker();
-const protected_provider: Provider = async (ctx) => {
-  return await breaker.call_provider(openai_provider, ctx);
-};
+const protected_provider: Provider = ((ctx: Context, opts?: { stream: true }) => {
+  if (opts?.stream) {
+    // Delegate streaming to the underlying provider through the breaker
+    return openai_provider(ctx, { stream: true });
+  }
+  return breaker.call_provider(openai_provider, ctx);
+}) as Provider;
 ```
 
 ## Best Practices
@@ -407,4 +461,4 @@ const protected_provider: Provider = async (ctx) => {
 
 ---
 
-**[← Back to Examples](../index.md#examples)**
+**[Back to Examples](../index.md#examples)**

@@ -4,18 +4,16 @@ Understanding the core concepts of @arcaelas/agent will help you build sophistic
 
 ## Architecture Overview
 
-@arcaelas/agent is built on four interconnected concepts:
+@arcaelas/agent is built on interconnected concepts:
 
-```mermaid
-graph TB
-    A[Agent] --> B[Context]
-    B --> C[Metadata]
-    B --> D[Rules]
-    B --> E[Tools]
-    B --> F[Messages]
-    A --> G[Providers]
-    style A fill:#5c6ac4
-    style B fill:#7c3aed
+```
+Agent (Entry Point)
+  +-- Context (Reactive State Management)
+  |   +-- Metadata (Key-Value Store with Inheritance)
+  |   +-- Rules (Behavioral Guidelines)
+  |   +-- Tools (Function Registry)
+  |   +-- Messages (Conversation History)
+  +-- Providers (Dual-Mode AI Integration)
 ```
 
 ### 1. Agent - The Orchestrator
@@ -25,7 +23,7 @@ graph TB
 - **Identity**: Name and description
 - **Behavior**: Rules and guidelines
 - **Capabilities**: Tools and functions
-- **Intelligence**: Provider functions
+- **Intelligence**: Provider functions (dual-mode: call + stream)
 
 ```typescript
 const agent = new Agent({
@@ -39,12 +37,12 @@ const agent = new Agent({
 
 **Key Features:**
 
-- Automatic tool execution
-- Provider failover
+- Automatic tool execution in parallel with `Promise.all`
+- Provider failover with random selection
 - Context inheritance
 - Message history management
-
-**[Learn more →](../api/agent.md)**
+- `MAX_LOOPS = 10` limit per call/stream to prevent infinite loops
+- Two execution modes: `agent.call()` (batch) and `agent.stream()` (streaming)
 
 ### 2. Context - Reactive State Management
 
@@ -67,50 +65,52 @@ const sales_context = new Context({
 
 **Inheritance Rules:**
 
-- **Metadata**: Child can override parent values
-- **Rules**: Child adds to parent rules
-- **Tools**: Child tools override parent by name
-- **Messages**: Combined from parent and child
-
-**[Learn more →](../api/context.md)**
+- **Metadata**: Child can override parent values. Uses spread-operator constructor `new Metadata(parent1, parent2)`.
+- **Rules**: Child adds to parent rules (parent first, then local).
+- **Tools**: Deduplicated by name -- child tools override parent tools with the same name.
+- **Messages**: Combined from parent and child (parent first, then local).
 
 ### 3. Metadata - Key-Value Store
 
-**Metadata** is a reactive key-value store with inheritance. Perfect for configuration and state.
+**Metadata** is a hierarchical key-value store with inheritance via a broker pattern. The constructor accepts spread Metadata instances as parents:
 
 ```typescript
-const parent = new Metadata()
-  .set("theme", "light")
-  .set("lang", "en");
+// Multiple inheritance via spread operator
+const defaults = new Metadata();
+defaults.set("theme", "light");
 
-const child = new Metadata(parent)
-  .set("theme", "dark");  // Override
+const env = new Metadata();
+env.set("theme", "dark");
 
-console.log(child.get("theme"));  // "dark" (overridden)
-console.log(child.get("lang"));   // "en" (inherited)
+// Later parents take precedence
+const config = new Metadata(defaults, env);
+console.log(config.get("theme", ""));  // "dark" (from env)
 ```
 
-**Use Cases:**
+**Key operations:**
 
-- Application configuration
-- User preferences
-- Feature flags
-- Session data
-
-**[Learn more →](../api/metadata.md)**
+- `set(key, value)` -- stores locally. Use `null` to mark as deleted.
+- `get(key, fallback)` -- reads with hierarchical fallback through parents.
+- `has(key)` -- checks existence (returns false if locally set to null).
+- `delete(key)` -- alias for `set(key, null)`.
+- `clear()` -- removes all local data without affecting parents.
+- `use(...parents)` -- adds parent nodes dynamically.
+- `all()` / `toJSON()` -- returns merged view excluding null values.
 
 ### 4. Tools - Function Execution
 
-**Tools** encapsulate functions that agents can execute. They can be simple or complex.
+**Tools** encapsulate functions that agents can execute. They support two constructors:
 
-**Simple Tool:**
+**Simple Tool** -- handler signature is `(agent: Agent, input: string) => any`:
+
 ```typescript
-const time_tool = new Tool("get_time", async (agent) => {
+const time_tool = new Tool("get_time", (agent: Agent, input: string) => {
   return new Date().toLocaleString();
 });
 ```
 
-**Advanced Tool:**
+**Advanced Tool** -- with typed parameters via `ToolOptions`:
+
 ```typescript
 const search_tool = new Tool("search_database", {
   description: "Search customer database",
@@ -118,21 +118,38 @@ const search_tool = new Tool("search_database", {
     query: "Search query string",
     limit: "Maximum results (default: 10)"
   },
-  func: async (agent, params) => {
-    const results = await database.search(params.query, params.limit || 10);
+  func: async (agent, { query, limit }) => {
+    const results = await database.search(query, limit || 10);
     return JSON.stringify(results);
   }
 });
 ```
 
-**Key Features:**
+**Tool deduplication:** When a child context defines a tool with the same name as a parent context tool, the child version overrides the parent. Tools are reduced into an object keyed by name, so the last one wins.
 
-- Automatic parameter validation
-- Async execution support
-- Error handling
-- Reusable across agents
+**`tool.toJSON()`** generates an OpenAI-compatible function calling structure automatically:
 
-**[Learn more →](../api/tool.md)**
+```typescript
+{
+  type: "function",
+  function: {
+    name: "search_database",
+    description: "Search customer database",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query string" },
+        limit: { type: "string", description: "Maximum results (default: 10)" }
+      }
+    }
+  }
+}
+```
+
+**Built-in tools:**
+
+- `TimeTool` -- returns current date/time with optional timezone
+- `RemoteTool` -- executes HTTP requests (GET, POST, PUT, DELETE, PATCH)
 
 ### 5. Rules - Behavioral Guidelines
 
@@ -145,7 +162,7 @@ const professional_rule = new Rule(
 );
 ```
 
-**Conditional Rule:**
+**Conditional Rule** -- `when` receives the Agent instance:
 ```typescript
 const business_hours_rule = new Rule(
   "Inform about office hours availability",
@@ -158,16 +175,16 @@ const business_hours_rule = new Rule(
 );
 ```
 
-**[Learn more →](../api/rule.md)**
+Rules are injected as system messages by the built-in providers. Their descriptions are joined with `\n\n`.
 
 ### 6. Messages - Conversation History
 
 **Messages** represent individual messages in a conversation. Types include:
 
-- `user` - Messages from the user
-- `assistant` - Responses from the agent
-- `tool` - Results from tool execution
-- `system` - System-level instructions
+- `user` -- Messages from the user
+- `assistant` -- Responses from the agent (may include `tool_calls`)
+- `tool` -- Results from tool execution (requires `tool_call_id`)
+- `system` -- System-level instructions
 
 ```typescript
 const user_msg = new Message({
@@ -177,38 +194,37 @@ const user_msg = new Message({
 
 const tool_msg = new Message({
   role: "tool",
-  tool_call_id: "weather_123",
-  content: "Sunny, 22°C"
+  tool_call_id: "call_abc123",
+  content: "Sunny, 22C"
+});
+
+const assistant_msg = new Message({
+  role: "assistant",
+  content: null,
+  tool_calls: [{
+    id: "call_abc123",
+    type: "function",
+    function: { name: "get_weather", arguments: '{"city":"Madrid"}' }
+  }]
 });
 ```
 
-**[Learn more →](../api/message.md)**
+Note: tool messages use `tool_call_id` (not `tool_id`). This matches the OpenAI format used throughout the system.
 
 ### 7. Providers - AI Integration
 
-**Providers** are functions that integrate with AI services. They receive context and return completions.
+**Providers** are dual-mode functions that receive a `Context` and return completions:
 
 ```typescript
-const openai_provider = async (ctx) => {
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-  return await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: ctx.messages.map(m => ({
-      role: m.role,
-      content: m.content
-    })),
-    tools: ctx.tools?.map(tool => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: { type: "object", properties: tool.parameters }
-      }
-    }))
-  });
+type Provider = {
+  (ctx: Context): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true }): AsyncIterable<ProviderChunk>;
 };
 ```
+
+Without `{ stream: true }`, they return a `ChatCompletionResponse`. With it, they return an `AsyncIterable<ProviderChunk>`.
+
+The library includes 4 built-in providers: `OpenAI`, `Groq`, `DeepSeek`, `Claude`. All implement this dual-mode interface.
 
 **Multi-Provider Failover:**
 
@@ -217,113 +233,86 @@ const agent = new Agent({
   name: "Resilient_Agent",
   description: "High-availability agent",
   providers: [
-    openai_provider,    // Primary
-    claude_provider,    // Backup 1
-    groq_provider       // Backup 2
+    new OpenAI({ api_key: "...", model: "gpt-4" }),
+    new Claude({ api_key: "...", model: "claude-3-5-sonnet-20241022", max_tokens: 4096 }),
+    new Groq({ api_key: "...", model: "llama-3.1-70b-versatile" })
   ]
 });
 ```
 
-If the primary fails, the agent automatically tries backup providers in order.
+Providers are selected **randomly** from the pool. On failure, the provider moves to a fallback pool and is retried only if no primary providers remain. This is not sequential ordering -- it's random selection with retry.
 
-**[Learn more →](../api/providers.md)**
+### 8. Streaming
+
+`agent.stream()` yields `StreamChunk` objects as they arrive from the provider:
+
+```typescript
+type StreamChunk =
+  | { role: "assistant"; content: string }
+  | { role: "tool"; name: string; tool_call_id: string; content: string };
+```
+
+The stream method handles the full agentic loop internally:
+
+1. Sends the input to a randomly selected provider with `{ stream: true }`
+2. Yields text deltas as `{ role: "assistant", content: "..." }` chunks
+3. Accumulates tool call deltas
+4. Executes tools in parallel with `Promise.all`
+5. Yields tool results as `{ role: "tool", ... }` chunks
+6. Re-invokes the provider for a new loop iteration
+7. Continues until the model stops or `MAX_LOOPS = 10` is reached
+
+```typescript
+for await (const chunk of agent.stream("Search for TypeScript tutorials")) {
+  if (chunk.role === "assistant") {
+    process.stdout.write(chunk.content);
+  }
+  if (chunk.role === "tool") {
+    console.log(`[${chunk.name}]: ${chunk.content}`);
+  }
+}
+```
+
+Input types accepted: `string`, `Message` instance, or `{ role: "user" | "assistant", content: string }`.
 
 ## Data Flow
 
 Understanding how data flows through the system:
 
-1. **User Input** → Agent receives prompt
-2. **Context Building** → Agent prepares context with messages, tools, rules
-3. **Provider Call** → Provider receives context, returns completion
-4. **Tool Execution** → If completion includes tool calls, execute them
-5. **Loop** → Repeat steps 3-4 until completion or failure
-6. **Response** → Return final messages and success status
+1. **User Input** -- Agent receives prompt via `call()` or `stream()`
+2. **Context Building** -- Agent prepares context with messages, tools, rules
+3. **Provider Call** -- Provider receives Context, returns completion or stream
+4. **Tool Execution** -- If completion includes tool calls, execute them in parallel with `Promise.all`
+5. **Loop** -- Repeat steps 3-4 until completion or `MAX_LOOPS` (10) reached
+6. **Response** -- `call()` returns `[Message[], boolean]`, `stream()` yields `StreamChunk`
 
 ```typescript
+// Batch mode
 const [messages, success] = await agent.call("Hello");
-//     ^^^^^^^^  ^^^^^^^
-//     Full conversation history
-//                Success indicator
+
+// Streaming mode
+for await (const chunk of agent.stream("Hello")) { ... }
 ```
 
-## Reactive Architecture
+## Tool Execution Details
 
-The reactive architecture means changes propagate automatically:
-
-```typescript
-const parent_context = new Context({
-  metadata: new Metadata().set("version", "1.0")
-});
-
-const child_context = new Context({
-  context: parent_context
-});
-
-// Child automatically sees parent's metadata
-console.log(child_context.metadata.get("version"));  // "1.0"
-
-// Changes in parent don't affect existing child references
-// But new children get updated values
-parent_context.metadata.set("version", "2.0");
-```
-
-## Best Practices
-
-### 1. Context Organization
-
-Organize contexts by scope:
+Tools are executed with error isolation per tool. Each tool call is wrapped in try/catch so a single failing tool does not break the entire batch:
 
 ```typescript
-// Global company context
-const company_ctx = new Context({ ... });
-
-// Department contexts
-const sales_ctx = new Context({ context: company_ctx, ... });
-const support_ctx = new Context({ context: company_ctx, ... });
-
-// Team contexts
-const sales_team_a = new Context({ context: sales_ctx, ... });
-```
-
-### 2. Tool Design
-
-Keep tools focused and reusable:
-
-```typescript
-// ✅ Good: Focused, single responsibility
-const get_weather = new Tool("get_weather", { ... });
-const get_forecast = new Tool("get_forecast", { ... });
-
-// ❌ Bad: Too broad
-const weather_everything = new Tool("weather", { ... });
-```
-
-### 3. Provider Strategy
-
-Always have fallback providers:
-
-```typescript
-providers: [
-  primary_provider,      // Fast, preferred
-  backup_provider,       // Reliable fallback
-  emergency_provider     // Last resort
-]
-```
-
-### 4. Error Handling
-
-Handle errors gracefully:
-
-```typescript
-const [messages, success] = await agent.call(prompt);
-
-if (!success) {
-  // Log error
-  console.error("Agent failed to respond");
-
-  // Retry or fallback
-  await retry_mechanism();
-}
+// Internal behavior (simplified):
+const results = await Promise.all(
+  tool_calls.map(async (tc) => {
+    try {
+      const tool = TOOLS.find(t => t.name === tc.function.name);
+      if (!tool) return { content: "Tool not found" };
+      const result = await tool.func(agent, JSON.parse(tc.function.arguments));
+      // Safe serialization: handles undefined, functions, bigints, circular refs
+      return { content: JSON.stringify(result) };
+    } catch (error) {
+      return { content: error.message };
+    }
+  })
+);
 ```
 
 ## Common Patterns
@@ -336,13 +325,8 @@ Create specialized agents for different tasks:
 const search_agent = new Agent({
   name: "Search_Agent",
   description: "Expert in searching and finding information",
-  tools: [web_search, doc_search, db_search]
-});
-
-const writer_agent = new Agent({
-  name: "Writer_Agent",
-  description: "Expert in writing and content creation",
-  tools: [grammar_check, style_check, plagiarism_check]
+  tools: [web_search, doc_search, db_search],
+  providers: [openai]
 });
 ```
 
@@ -351,34 +335,29 @@ const writer_agent = new Agent({
 Chain agents for complex workflows:
 
 ```typescript
-async function complex_task(input) {
-  // Step 1: Research
-  const [research, success1] = await research_agent.call(input);
-
-  // Step 2: Analysis
-  const analysis_input = research[research.length - 1].content;
-  const [analysis, success2] = await analysis_agent.call(analysis_input);
-
-  // Step 3: Report
-  const report_input = analysis[analysis.length - 1].content;
-  const [report, success3] = await writer_agent.call(report_input);
-
+async function complex_task(input: string) {
+  const [research] = await research_agent.call(input);
+  const analysis_input = research[research.length - 1].content!;
+  const [analysis] = await analysis_agent.call(analysis_input);
+  const report_input = analysis[analysis.length - 1].content!;
+  const [report] = await writer_agent.call(report_input);
   return report;
 }
 ```
 
 ### Pattern: Context Composition
 
-Compose contexts for flexibility:
+Compose contexts from multiple sources:
 
 ```typescript
 const auth_context = new Context({ ... });
 const logging_context = new Context({ ... });
-const analytics_context = new Context({ ... });
 
 const agent = new Agent({
-  contexts: [auth_context, logging_context, analytics_context],
-  ...
+  name: "Multi_Context_Agent",
+  description: "Agent with multiple parent contexts",
+  contexts: [auth_context, logging_context],
+  providers: [openai]
 });
 ```
 
@@ -387,4 +366,3 @@ const agent = new Agent({
 - **[Providers Guide](providers.md)** - Advanced provider configuration
 - **[Best Practices](best-practices.md)** - Production patterns
 - **[API Reference](../api/agent.md)** - Complete API documentation
-- **[Examples](../examples/basic-agent.md)** - Practical implementations

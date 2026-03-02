@@ -43,6 +43,30 @@ const robust_tool = new Tool('my_tool', {
 });
 ```
 
+## Message Getter/Setter Behavior
+
+The `agent.messages` getter returns the **combined** array of inherited messages (from parent contexts) plus local messages. Setting `agent.messages` via the setter only replaces **local** messages; inherited messages from parent contexts are not affected.
+
+```typescript
+const parent_ctx = new Context({
+  messages: [new Message({ role: "system", content: "Parent instruction" })]
+});
+
+const agent = new Agent({
+  name: "Test",
+  description: "Test agent",
+  contexts: parent_ctx,
+  messages: [new Message({ role: "user", content: "Hello" })]
+});
+
+console.log(agent.messages.length); // 2 (1 inherited + 1 local)
+
+// Setting messages replaces only local messages
+agent.messages = [new Message({ role: "user", content: "New message" })];
+console.log(agent.messages.length); // 2 (1 inherited + 1 new local)
+// The parent "system" message is still present
+```
+
 ## Memory Issues
 
 **Problem**: High memory usage
@@ -53,7 +77,7 @@ const robust_tool = new Tool('my_tool', {
 3. Use external storage
 
 ```typescript
-// Limit message history
+// Limit message history (only affects local messages)
 if (agent.messages.length > 100) {
   agent.messages = agent.messages.slice(-50);  // Keep last 50
 }
@@ -67,8 +91,15 @@ if (agent.messages.length > 100) {
 1. Use faster models (gpt-3.5-turbo vs gpt-4)
 2. Reduce tool count
 3. Implement timeouts
-4. Use streaming responses
+4. Use `agent.stream()` for real-time output instead of waiting for the full response
+
+```typescript
+// Stream for real-time output
+for await (const chunk of agent.stream("Summarize this document")) {
+  if (chunk.role === "assistant") process.stdout.write(chunk.content);
+}
+```
 
 ---
 
-**[← Back to Advanced](../index.md#advanced)**
+**[<- Back to Advanced](../index.md#advanced)**

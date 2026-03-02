@@ -5,28 +5,49 @@ Internal design and system architecture of @arcaelas/agent.
 ## System Overview
 
 ```
-┌─────────────────────────────────────────┐
-│             Agent Layer                  │
-│  ┌─────────────────────────────────┐   │
-│  │  Agent (Orchestrator)            │   │
-│  │  - name, description             │   │
-│  │  - providers (AI services)       │   │
-│  │  - call() method                 │   │
-│  └───────────┬─────────────────────┘   │
-│              │                           │
-└──────────────┼───────────────────────────┘
-               │
-┌──────────────▼───────────────────────────┐
-│          Context Layer                    │
-│  ┌─────────────────────────────────┐    │
-│  │  Context (State Management)      │    │
-│  │  - metadata (reactive KV store)  │    │
-│  │  - rules (behavior guidelines)   │    │
-│  │  - tools (executable functions)  │    │
-│  │  - messages (conversation)       │    │
-│  │  - contexts (parent inheritance) │    │
-│  └─────────────────────────────────┘    │
-└──────────────────────────────────────────┘
+                         Agent Layer
+ +-------------------------------------------------+
+ |  Agent (Orchestrator)                            |
+ |  - name, description                            |
+ |  - providers (AI services)                      |
+ |  - call() method (non-streaming)                |
+ |  - stream() method (streaming, async generator) |
+ +-----------------------+-------------------------+
+                         |
+          +--------------v--------------+
+          |        Context Layer        |
+          |  Context (State Management) |
+          |  - metadata (reactive KV)   |
+          |  - rules (guidelines)       |
+          |  - tools (functions)        |
+          |  - messages (conversation)  |
+          |  - context (parent inherit) |
+          +-----------------------------+
+```
+
+## Type Hierarchy
+
+```
+Provider (dual-mode function type)
+  |-- (ctx: Context) => ChatCompletionResponse | Promise<ChatCompletionResponse>
+  |-- (ctx: Context, opts: { stream: true }) => AsyncIterable<ProviderChunk>
+
+ProviderChunk (discriminated union)
+  |-- { type: "text_delta"; content: string }
+  |-- { type: "tool_call_delta"; index; id?; name?; arguments_delta? }
+  |-- { type: "finish"; finish_reason: string }
+
+StreamChunk (discriminated union, yielded by Agent.stream())
+  |-- { role: "assistant"; content: string }
+  |-- { role: "tool"; name: string; tool_call_id: string; content: string }
+
+StreamInput = string | Message | { role: "user" | "assistant"; content: string }
+
+MessageOptions (discriminated union)
+  |-- { role: "user"; content: string }
+  |-- { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  |-- { role: "system"; content: string }
+  |-- { role: "tool"; content: string; tool_call_id: string }
 ```
 
 ## Core Components
@@ -37,7 +58,8 @@ Internal design and system architecture of @arcaelas/agent.
 
 **Key Methods**:
 - `constructor(options)` - Initialize with configuration
-- `call(prompt)` - Execute conversation with providers and tools
+- `call(prompt)` - Execute conversation with providers and tools (non-streaming)
+- `stream(input)` - Async generator that yields StreamChunk objects in real-time
 - `get/set metadata`, `rules`, `tools`, `messages` - Access context properties
 
 **Execution Flow** (`call` method):
@@ -48,35 +70,67 @@ Internal design and system architecture of @arcaelas/agent.
 5. Add tool results to context and loop again
 6. Return when completion has no tool_calls
 
+**Streaming Flow** (`stream` method):
+1. Add input message to context
+2. Call provider with `{ stream: true }` to get `AsyncIterable<ProviderChunk>`
+3. Accumulate text deltas and yield `{ role: "assistant", content }` chunks
+4. Accumulate tool_call deltas by index
+5. When stream ends with tool_calls, execute tools in parallel
+6. Yield `{ role: "tool", ... }` chunks for each tool result
+7. Loop back to step 2 (re-invoke provider) until no more tool_calls
+8. Max 10 iterations as safety limit
+
 ### 2. Context
 
 **Responsibility**: Hierarchical state management with inheritance
 
 **Key Features**:
-- Parent context inheritance via `contexts` parameter
+- Parent context inheritance via `context` parameter (singular, accepts one or array)
 - Automatic merging of metadata, rules, tools, messages
-- Tool deduplication by name (child overrides parent)
+- Tool deduplication by name (last wins)
 - Reactive metadata updates through broker pattern
 
+**Note**: Context uses `context` as the option name. Agent uses `contexts` in its AgentOptions, but internally passes it to Context's `context` parameter.
+
 **Inheritance Rules**:
-- **Metadata**: Child can override parent values (last wins)
+- **Metadata**: Child can override parent values (last wins via broker)
 - **Rules**: Concatenated (parent rules + child rules)
-- **Tools**: Deduplicated by name (child tools replace parent)
+- **Tools**: Deduplicated by name using `reduce` with object spread -- last definition wins
 - **Messages**: Concatenated (parent messages + child messages)
+
+**Tool Deduplication Implementation**:
+```typescript
+get tools(): Tool[] {
+  return Object.values(
+    [...this._contexts.map(c => c.tools).flat(), ...this._tools].reduce(
+      (acc, tool) => ({ ...acc, [tool.name]: tool }),
+      {} as Record<string, Tool>
+    )
+  );
+}
+```
+Tools are collected from parents first, then locals. The `reduce` with spread means if a child defines a tool with the same name as a parent, the child's version replaces the parent's (last wins).
 
 ### 3. Metadata
 
 **Responsibility**: Reactive key-value storage with broker pattern
 
+**Constructor**: Accepts spread arguments of `Metadata | Metadata[]`:
+```typescript
+new Metadata()                        // No inheritance
+new Metadata(parent1)                 // Single parent
+new Metadata(parent1, parent2)        // Multiple parents
+new Metadata(parent1, [parent2])      // Mixed spread + array
+```
+
 **Architecture**:
 ```typescript
 Metadata {
-  _brokers: Metadata[]   // Parent metadatas
-  _storage: Map          // Local storage
+  _data: Record<string, string | null>  // Local storage
+  _broker: Metadata[]                    // Parent metadatas
 
-  get(key) {
-    // Check local first
-    // Then check brokers in order
+  get(key, fallback) {
+    // Check brokers in order, then local overrides
   }
 
   set(key, value) {
@@ -98,83 +152,130 @@ Metadata {
 - `name` - Unique identifier
 - `description` - What the tool does
 - `parameters` - Schema of expected parameters
-- `func` - Executable function
+- `func` - Executable function `(agent: Agent, params) => any`
 
 ### 5. Rule
 
 **Responsibility**: Define behavioral guidelines
 
 **Types**:
-- **Static**: `new Rule(content)` - Always applies
-- **Conditional**: `new Rule(content, { when })` - Applies when condition met
+- **Static**: `new Rule(description)` - Always applies
+- **Conditional**: `new Rule(description, { when })` - Applies when condition met
 
 ### 6. Message
 
 **Responsibility**: Represent conversation messages
 
-**Types** (discriminated union):
-- `UserMessage` - User input
-- `AssistantMessage` - AI response
-- `ToolMessage` - Tool result
-- `SystemMessage` - System instruction
+**Discriminated union** via MessageOptions:
+- `{ role: "user"; content: string }` - User input
+- `{ role: "assistant"; content: string | null; tool_calls?: ToolCall[] }` - AI response, may include tool_calls
+- `{ role: "tool"; content: string; tool_call_id: string }` - Tool result
+- `{ role: "system"; content: string }` - System instruction
+
+Each Message instance also has a `timestamp: Date` set at creation time.
 
 ### 7. Provider
 
 **Responsibility**: Interface with AI services
 
-**Signature**:
+**Signature** (dual-mode):
 ```typescript
-type Provider = (ctx: Context) => ChatCompletionResponse | Promise<ChatCompletionResponse>
+type Provider = {
+  (ctx: Context): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true }): AsyncIterable<ProviderChunk>;
+};
 ```
 
 **Contract**:
-- Input: Context with messages, tools, metadata
-- Output: ChatCompletionResponse (OpenAI-compatible format)
+- Non-streaming: Input Context, output ChatCompletionResponse (OpenAI-compatible format)
+- Streaming: Input Context + `{ stream: true }`, output `AsyncIterable<ProviderChunk>`
 
 ## Data Flow
 
-### Standard Conversation
+### Standard Conversation (`call`)
 
 ```
 User sends prompt
-       │
-       ▼
-┌──────────────────┐
-│ Agent.call()     │
-│ - Add user msg   │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Provider Loop    │──┐
-│ - Random select  │  │ Failover
-│ - Try provider   │◄─┘
-└────────┬─────────┘
-         │
-         ▼
-  ┌─────────────┐
-  │ Tool calls? │
-  └──┬──────┬───┘
-     │No    │Yes
-     │      ▼
-     │  ┌────────────────┐
-     │  │ Execute tools  │
-     │  │ in parallel    │
-     │  └───────┬────────┘
-     │          │
-     │          ▼
-     │  ┌────────────────┐
-     │  │ Add tool       │
-     │  │ results to ctx │
-     │  └───────┬────────┘
-     │          │
-     │          └───┐
-     │              │
-     ▼              ▼
-┌────────────────────┐
-│ Return messages    │
-│ and success flag   │
-└────────────────────┘
+       |
+       v
++------------------+
+| Agent.call()     |
+| - Add user msg   |
++--------+---------+
+         |
+         v
++------------------+
+| Provider Loop    |--+
+| - Random select  |  | Failover
+| - Try provider   |<-+
++--------+---------+
+         |
+         v
+  +-------------+
+  | Tool calls? |
+  +--+------+---+
+     |No    |Yes
+     |      v
+     |  +----------------+
+     |  | Execute tools  |
+     |  | in parallel    |
+     |  +-------+--------+
+     |          |
+     |          v
+     |  +----------------+
+     |  | Add tool       |
+     |  | results to ctx |
+     |  +-------+--------+
+     |          |
+     |          +---+
+     |              |
+     v              v
++--------------------+
+| Return messages    |
+| and success flag   |
++--------------------+
+```
+
+### Streaming Conversation (`stream`)
+
+```
+Input (string | Message | {role, content})
+       |
+       v
++--------------------+
+| Agent.stream()     |
+| - Add input msg    |
++--------+-----------+
+         |
+         v
++------------------------+
+| provider(ctx, {stream})|
+| yields ProviderChunk   |
++--------+---------------+
+         |
+    +----v----+
+    | Chunk   |
+    | type?   |
+    +--+---+--+
+       |   |
+  text |   | tool_call
+  delta|   | delta
+       v   v
+  yield  accumulate
+  to     by index
+  consumer
+         |
+         v
+  +-------------+
+  | Tool calls? |
+  +--+------+---+
+     |No    |Yes
+     |      v
+     |  Execute tools
+     |  yield tool chunks
+     |  loop back to provider
+     v
+  Return (done)
 ```
 
 ### Provider Failover
@@ -183,21 +284,21 @@ User sends prompt
 PROVIDERS = [P1, P2, P3]
 FALLBACK = []
 
-┌──────────────────────┐
-│ Random select from   │
-│ PROVIDERS or FALLBACK│
-└──────────┬───────────┘
-           │
-           ▼
-      ┌─────────┐
-      │ Success?│
-      └─┬───┬───┘
-        │Yes│No
-        │   │
-        ▼   ▼
-    ┌────┐ ┌────────────────────────┐
-    │Done│ │Move to FALLBACK & retry│
-    └────┘ └────────────────────────┘
++----------------------+
+| Random select from   |
+| PROVIDERS or FALLBACK|
++----------+-----------+
+           |
+           v
+      +---------+
+      | Success?|
+      +-+---+---+
+        |Yes|No
+        |   |
+        v   v
+    +----+ +------------------------+
+    |Done| |Move to FALLBACK & retry|
+    +----+ +------------------------+
 ```
 
 ## Design Patterns
@@ -236,10 +337,10 @@ class Agent {
 TypeScript discriminated unions for type-safe message handling:
 
 ```typescript
-type Message =
+type MessageOptions =
   | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string }
-  | { role: 'tool'; tool_call_id: string; content: string }
+  | { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
+  | { role: 'tool'; content: string; tool_call_id: string }
   | { role: 'system'; content: string }
 ```
 
@@ -251,7 +352,8 @@ Parallel tool execution using Promise.all:
 const tool_results = await Promise.all(
   tool_calls.map(async (call) => {
     const tool = tools.find(t => t.name === call.function.name);
-    return await tool.func(JSON.parse(call.function.arguments));
+    const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+    return await tool.func(agent, args);
   })
 );
 ```
@@ -259,8 +361,8 @@ const tool_results = await Promise.all(
 ## Performance Characteristics
 
 - **Context Creation**: O(1) - Shallow copying
-- **Metadata Lookup**: O(n) - Checks local then brokers
-- **Tool Deduplication**: O(n) - Single pass with Map
+- **Metadata Lookup**: O(n) - Checks brokers then local
+- **Tool Deduplication**: O(n) - Single pass with reduce + object spread
 - **Message Concatenation**: O(n) - Array concat
 - **Provider Failover**: O(p) worst case - p = number of providers
 
@@ -292,4 +394,4 @@ const tool_results = await Promise.all(
 
 ---
 
-**[← Back to Advanced](../index.md#advanced)**
+**[<- Back to Advanced](../index.md#advanced)**

@@ -13,7 +13,8 @@ A basic agent is the simplest form of an AI-powered assistant. It combines:
 ## Complete Example
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Context, Message } from '@arcaelas/agent';
+import type { Provider, ChatCompletionResponse, ProviderChunk } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 // Initialize OpenAI client
@@ -22,16 +23,33 @@ const openai = new OpenAI({
   baseURL: "https://api.openai.com/v1"
 });
 
-// Create provider function
-const openai_provider = async (agent) => {
-  return await openai.chat.completions.create({
+// Create dual-mode provider function
+// Providers receive Context (ctx), NOT Agent
+const openai_provider: Provider = ((ctx: Context, opts?: { stream: true }) => {
+  if (opts?.stream) {
+    // Streaming mode: return AsyncIterable<ProviderChunk>
+    return (async function* () {
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4",
+        stream: true,
+        messages: ctx.messages.map(m => m.toJSON())
+      });
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta;
+        if (delta?.content) {
+          yield { type: "text_delta", content: delta.content } as ProviderChunk;
+        }
+      }
+      yield { type: "finish", finish_reason: "stop" } as ProviderChunk;
+    })();
+  }
+
+  // Normal mode: return ChatCompletionResponse
+  return openai.chat.completions.create({
     model: "gpt-4",
-    messages: agent.messages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }))
+    messages: ctx.messages.map(m => m.toJSON())
   });
-};
+}) as Provider;
 
 // Create basic agent
 const chatbot = new Agent({
@@ -40,9 +58,8 @@ const chatbot = new Agent({
   providers: [openai_provider]
 });
 
-// Start conversation
+// --- Using call() ---
 async function chat() {
-  // First message
   const [messages1, success1] = await chatbot.call("Hello! What's your name?");
 
   if (success1) {
@@ -50,12 +67,23 @@ async function chat() {
     console.log("Bot:", messages1[messages1.length - 1].content);
   }
 
-  // Follow-up message
   const [messages2, success2] = await chatbot.call("Can you help me with programming questions?");
 
   if (success2) {
     console.log("User:", "Can you help me with programming questions?");
     console.log("Bot:", messages2[messages2.length - 1].content);
+  }
+}
+
+// --- Using stream() ---
+async function chatStream() {
+  for await (const chunk of chatbot.stream("Hello! What's your name?")) {
+    if (chunk.role === "assistant") {
+      process.stdout.write(chunk.content);
+    }
+    if (chunk.role === "tool") {
+      console.log(`[${chunk.name}]: ${chunk.content}`);
+    }
   }
 }
 
@@ -67,7 +95,8 @@ chat();
 ### 1. Import Dependencies
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Context, Message } from '@arcaelas/agent';
+import type { Provider, ChatCompletionResponse, ProviderChunk } from '@arcaelas/agent';
 import OpenAI from 'openai';
 ```
 
@@ -84,19 +113,41 @@ const openai = new OpenAI({
 
 ### 3. Create Provider Function
 
+The Provider type is dual-mode with two overloads:
+
 ```typescript
-const openai_provider = async (agent) => {
-  return await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: agent.messages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }))
-  });
+type Provider = {
+  (ctx: Context): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true }): AsyncIterable<ProviderChunk>;
 };
 ```
 
-The provider function receives the full agent context and returns an OpenAI-compatible response.
+Providers receive `Context` (not `Agent`). The context exposes `.messages`, `.tools`, `.rules`, and `.metadata`.
+
+```typescript
+const openai_provider: Provider = ((ctx: Context, opts?: { stream: true }) => {
+  if (opts?.stream) {
+    return (async function* () {
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4",
+        stream: true,
+        messages: ctx.messages.map(m => m.toJSON())
+      });
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta;
+        if (delta?.content) {
+          yield { type: "text_delta", content: delta.content } as ProviderChunk;
+        }
+      }
+      yield { type: "finish", finish_reason: "stop" } as ProviderChunk;
+    })();
+  }
+  return openai.chat.completions.create({
+    model: "gpt-4",
+    messages: ctx.messages.map(m => m.toJSON())
+  });
+}) as Provider;
+```
 
 ### 4. Initialize Agent
 
@@ -104,26 +155,42 @@ The provider function receives the full agent context and returns an OpenAI-comp
 const chatbot = new Agent({
   name: "Simple_Chatbot",
   description: "A friendly conversational assistant",
+  contexts?: Context | Context[],   // optional parent contexts
   providers: [openai_provider]
 });
 ```
 
+The `contexts` option accepts a single `Context` or an array of `Context` instances for inheritance.
+
 ### 5. Send Messages
+
+#### With `call()` (non-streaming)
 
 ```typescript
 const [messages, success] = await chatbot.call("Hello!");
 ```
 
-The `call()` method returns:
-- `messages`: Full conversation history
+Returns:
+- `messages`: Full conversation history as `Message[]`
 - `success`: Boolean indicating if the call succeeded
+
+#### With `stream()` (streaming)
+
+```typescript
+for await (const chunk of chatbot.stream("Hello!")) {
+  if (chunk.role === "assistant") process.stdout.write(chunk.content);
+  if (chunk.role === "tool") console.log(`[${chunk.name}]: ${chunk.content}`);
+}
+```
+
+`stream()` accepts `string | Message | { role: "user" | "assistant", content: string }`.
 
 ## Running the Example
 
 1. Install dependencies:
 
 ```bash
-npm install @arcaelas/agent openai
+yarn add @arcaelas/agent openai
 ```
 
 2. Set environment variable:
@@ -183,15 +250,13 @@ console.log(response);
 ### Change Model
 
 ```typescript
-const openai_provider = async (agent) => {
-  return await openai.chat.completions.create({
+const openai_provider: Provider = ((ctx: Context, opts?: { stream: true }) => {
+  if (opts?.stream) { /* streaming implementation */ }
+  return openai.chat.completions.create({
     model: "gpt-3.5-turbo",  // Faster, cheaper
-    messages: agent.messages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }))
+    messages: ctx.messages.map(m => m.toJSON())
   });
-};
+}) as Provider;
 ```
 
 ### Add System Instructions
@@ -220,4 +285,4 @@ const chatbot = new Agent({
 
 ---
 
-**[← Back to Home](../index.md#examples)**
+**[Back to Home](../index.md#examples)**

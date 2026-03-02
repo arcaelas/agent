@@ -2,11 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## \[1.0.25] - 2026-03-02
+
+### Added
+
+- `Agent.stream()` method: async generator for real-time streaming responses with full agentic loop (tool execution and provider re-invocation).
+- `StreamChunk` type: discriminated union yielded by `Agent.stream()` (`{ role: "assistant"; content }` or `{ role: "tool"; name; tool_call_id; content }`).
+- `ProviderChunk` type: discriminated union emitted by providers in stream mode (`text_delta`, `tool_call_delta`, `finish`).
+- `StreamInput` type: accepted input for `Agent.stream()` (string, Message, or `{ role, content }` object).
+- Dual-mode `Provider` type: supports both non-streaming `(ctx: Context) => ChatCompletionResponse` and streaming `(ctx: Context, opts: { stream: true }) => AsyncIterable<ProviderChunk>` overloads.
+- SSE parser utilities: `parse_sse` and `parse_anthropic_sse` in `src/utils/sse.ts` for building custom streaming providers.
+
+### Changed
+
+- `Provider` type expanded to a dual-mode overloaded function type. No breaking changes: existing non-streaming providers continue to work with `call()`.
+
 ## \[1.0.4] - 2025-07-17
 
 ### Added
 
-- Full integration of the agent’s name and description into the system message.
+- Full integration of the agent's name and description into the system message.
 
 ### Improved
 
