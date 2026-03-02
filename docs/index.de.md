@@ -134,7 +134,7 @@ const weather_tool = new Tool("get_weather", {
 - **[Providers](api/providers.md)** - Anbieter-Funktionen
 - **[Built-in Tools](api/built-in-tools.md)** - RemoteTool & TimeTool
 
-### Beispiele
+### Beispiele { #examples }
 
 - **[Basic Agent](examples/basic-agent.md)** - Einfacher Chatbot
 - **[Multi-Provider](examples/multi-provider.md)** - Widerstandsfaehige Konfiguration
@@ -142,7 +142,7 @@ const weather_tool = new Tool("get_weather", {
 - **[Context Inheritance](examples/context-inheritance.md)** - Unternehmensmuster
 - **[Advanced Patterns](examples/advanced-patterns.md)** - Komplexe Szenarien
 
-### Erweitert
+### Erweitert { #advanced }
 
 - **[Architecture](advanced/architecture.md)** - Internes Design
 - **[Performance](advanced/performance.md)** - Optimierung
