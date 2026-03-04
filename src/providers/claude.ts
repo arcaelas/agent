@@ -13,7 +13,7 @@
  * @since 1.0.0
  */
 
-import type { ChatCompletionResponse, ProviderChunk } from "~/static/agent";
+import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/static/agent";
 import type Context from "~/static/context";
 import { parse_anthropic_sse } from "~/utils/sse";
 
@@ -84,6 +84,7 @@ export interface ClaudeProviderOptions {
  * }
  * ```
  */
+export default interface Claude extends Provider {}
 export default class Claude extends Function {
   constructor(options: ClaudeProviderOptions) {
     super();

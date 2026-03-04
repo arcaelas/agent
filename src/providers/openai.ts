@@ -11,7 +11,7 @@
  * @since 1.0.0
  */
 
-import type { ChatCompletionResponse, ProviderChunk } from "~/static/agent";
+import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/static/agent";
 import type Context from "~/static/context";
 import { parse_sse } from "~/utils/sse";
 
@@ -80,6 +80,7 @@ export interface OpenAIProviderOptions {
  * }
  * ```
  */
+export default interface OpenAI extends Provider {}
 export default class OpenAI extends Function {
   constructor(options: OpenAIProviderOptions) {
     super();
