@@ -592,3 +592,32 @@ export type { ClaudeProviderOptions } from "./providers/claude";
  */
 export { default as DeepSeek } from "./providers/deepseek";
 export type { DeepSeekProviderOptions } from "./providers/deepseek";
+
+/**
+ * @description
+ * Provider para Claude Code Agent SDK con autenticación OAuth.
+ *
+ * ClaudeCode utiliza `@anthropic-ai/claude-agent-sdk` para ejecutar consultas
+ * usando la sesión OAuth de Claude Code existente (sin API key).
+ * Las tools de @arcaelas/agent se registran como MCP tools automáticamente
+ * y el SDK ejecuta el loop agéntico completo.
+ *
+ * @example
+ * ```typescript
+ * import { ClaudeCode, Agent } from '@arcaelas/agent';
+ *
+ * const provider = new ClaudeCode({
+ *   model: "sonnet",
+ *   think: "none",
+ *   dirname: "/home/user/.claude-profiles/profile-name",
+ * });
+ *
+ * const agent = new Agent({
+ *   name: "Assistant",
+ *   description: "AI powered by Claude Code SDK",
+ *   providers: [provider],
+ * });
+ * ```
+ */
+export { default as ClaudeCode } from "./providers/claude-code";
+export type { ClaudeCodeOptions } from "./providers/claude-code";
