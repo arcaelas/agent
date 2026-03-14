@@ -122,9 +122,15 @@ function mcpFromTools(tools: Context["tools"], serverName: string) {
     version: "1.0.0",
     tools: tools.map((t) => {
       const j = t.toJSON();
-      const schema: Record<string, z.ZodString> = {};
-      for (const [k, v] of Object.entries(j.function.parameters.properties))
-        schema[k] = z.string().describe((v as any).description || k);
+      const isZod = t.parameters && typeof (t.parameters as any).parse === "function";
+      const schema: Record<string, any> = isZod
+        ? { ...(t.parameters as any).shape }
+        : Object.fromEntries(
+            Object.entries(j.function.parameters.properties ?? {}).map(([k, v]) => [
+              k,
+              z.string().describe((v as any).description || k),
+            ])
+          );
       return sdkTool(j.function.name, j.function.description || j.function.name, schema, async (args: any) => {
         try {
           const r = await t.func(null as any, args);

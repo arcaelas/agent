@@ -112,14 +112,16 @@ export default class DeepSeek extends Function {
       ...(options.headers ?? {}),
     });
 
-    return ((ctx: Context, opts?: { stream: true }): any => {
+    return ((ctx: Context, opts?: { stream?: true; signal?: AbortSignal }): any => {
       const { messages, tools } = build_payload(ctx);
+      const signal = opts?.signal;
 
       if (!opts?.stream) {
         return (async (): Promise<ChatCompletionResponse> => {
           const response = await fetch(`${base_url}/chat/completions`, {
             method: "POST",
             headers: build_headers(),
+            signal,
             body: JSON.stringify({
               model: options.model,
               messages,
@@ -141,6 +143,7 @@ export default class DeepSeek extends Function {
         const response = await fetch(`${base_url}/chat/completions`, {
           method: "POST",
           headers: build_headers(),
+          signal,
           body: JSON.stringify({
             model: options.model,
             messages,

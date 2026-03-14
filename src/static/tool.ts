@@ -1,181 +1,184 @@
 /**
  * @fileoverview
- * Sistema de herramientas modulares para agentes de IA.
- *
- * Este módulo proporciona la clase Tool que encapsula funcionalidades específicas
- * que los agentes pueden ejecutar durante conversaciones. Las herramientas son
- * completamente reutilizables entre diferentes contextos y agentes.
+ * Modular tool system for AI agents with dual schema support (Record and Zod).
+ * Sistema de herramientas modulares para agentes de IA con soporte dual de schema (Record y Zod).
  *
  * @author Arcaelas Insiders
- * @version 2.0.0
+ * @version 3.0.0
  * @since 2.0.0
  *
  * @example
  * ```typescript
- * // Herramienta simple
- * const weather = new Tool('get_weather', (agent: Agent, input: string) => {
- *   return "Sunny, 24°C";
+ * // Simple tool / Herramienta simple
+ * const weather = new Tool('get_weather', (agent, input) => "Sunny, 24C");
+ *
+ * // Record parameters (legacy) / Parametros Record (legacy)
+ * const customer = new Tool('find_customer', {
+ *   description: 'Buscar cliente por email',
+ *   parameters: { email: 'Email del cliente' },
+ *   func: (agent, { email }) => database.find(email),
  * });
  *
- * // Herramienta avanzada
- * const customer = new Tool('find_customer', {
- *   description: 'Buscar información de cliente en la base de datos',
- *   parameters: {
- *     email: 'Email del cliente a buscar',
- *     include_history: 'Incluir historial de transacciones (true/false)'
- *   },
- *   func: (agent, { email, include_history }) => {
- *     return database.find(email, include_history === 'true');
- *   }
+ * // Zod parameters (typed) / Parametros Zod (tipados)
+ * import { z } from 'zod';
+ * const search = new Tool('search', {
+ *   description: 'Buscar productos',
+ *   parameters: z.object({
+ *     query: z.string().describe('Termino de busqueda'),
+ *     limit: z.number().optional().describe('Maximo de resultados'),
+ *   }),
+ *   func: (agent, { query, limit }) => catalog.search(query, limit),
  * });
  * ```
  */
 
 import Agent from "./agent";
+import { z } from "zod";
 
 /**
  * @description
- * Opciones para configuración avanzada de herramientas.
- * @template T Tipo de parámetros de la herramienta
+ * Infers the parameter type for func based on the schema type.
+ * If T is a ZodType, infers the output type. Otherwise uses T directly.
+ *
+ * Infiere el tipo de parametros para func basado en el tipo de schema.
+ * Si T es ZodType, infiere el tipo de salida. De lo contrario usa T directamente.
+ */
+export type InferParams<T> = T extends z.ZodType<infer O> ? O : T extends object ? T : { input: string };
+
+/**
+ * @description
+ * Advanced tool configuration options.
+ * Opciones de configuracion avanzada de herramientas.
+ *
+ * @template T - Parameter type: Record<string, string> for legacy or z.ZodObject for typed schemas
  */
 export interface ToolOptions<T = Record<string, string>> {
   /**
    * @description
-   * Descripción clara de lo que hace la herramienta.
+   * Clear description of what the tool does.
+   * Descripcion clara de lo que hace la herramienta.
    */
   description: string;
 
   /**
    * @description
-   * Esquema de parámetros donde cada clave es el nombre del parámetro
-   * y cada valor es la descripción de ese parámetro.
+   * Parameter schema. Accepts either a Record<string, string> where values are descriptions,
+   * or a Zod schema for typed validation and rich JSON Schema generation.
+   *
+   * Esquema de parametros. Acepta un Record<string, string> donde los valores son descripciones,
+   * o un schema Zod para validacion tipada y generacion de JSON Schema rico.
    */
   parameters?: T;
 
   /**
    * @description
-   * Función que se ejecuta cuando la herramienta es llamada.
-   * Puede retornar cualquier valor serializable.
-   * Puede ser síncrona o asíncrona.
+   * Function executed when the tool is called. Can be sync or async.
+   * Funcion ejecutada cuando la herramienta es llamada. Puede ser sincrona o asincrona.
    */
-  func(agent: Agent, params: T extends object ? T : { input: string }): any;
+  func(agent: Agent, params: InferParams<T>): any;
 }
 
 /**
  * @description
- * Función simple para herramientas básicas.
+ * Simple handler function for basic tools.
+ * Funcion handler simple para herramientas basicas.
  */
 export type SimpleToolHandler = (agent: Agent, input: string) => any;
 
 /**
  * @description
- * Clase Tool que encapsula funcionalidades ejecutables por agentes de IA.
+ * Tool class encapsulating executable functions for AI agents.
+ * Supports dual schema: Record<string, string> (legacy) and Zod (typed).
  *
- * Las herramientas pueden ser simples (con entrada string) o avanzadas
- * (con parámetros tipados y validación). Son completamente reutilizables
- * entre diferentes contextos y agentes.
+ * Clase Tool que encapsula funciones ejecutables para agentes de IA.
+ * Soporta schema dual: Record<string, string> (legacy) y Zod (tipado).
  *
  * @example
  * ```typescript
- * // Herramienta simple para obtener timestamp
- * const timestamp = new Tool('get_timestamp', (agent: Agent, input: string) => {
- *   return new Date().toISOString();
+ * // Record schema (all params as strings)
+ * const ping = new Tool('ping', {
+ *   description: 'Ping a host',
+ *   parameters: { host: 'Host to ping' },
+ *   func: (agent, { host }) => `Pong from ${host}`,
  * });
  *
- * // Herramienta avanzada para búsqueda de productos
- * const product_search = new Tool('search_products', {
- *   description: 'Buscar productos en el catálogo con filtros avanzados',
- *   parameters: {
- *     query: 'Términos de búsqueda',
- *     category: 'Categoría específica (opcional)',
- *     max_price: 'Precio máximo (opcional)'
+ * // Zod schema (typed params)
+ * const calc = new Tool('calculate', {
+ *   description: 'Basic math',
+ *   parameters: z.object({
+ *     a: z.number().describe('First number'),
+ *     b: z.number().describe('Second number'),
+ *     op: z.enum(['+', '-', '*', '/']).describe('Operation'),
+ *   }),
+ *   func: (agent, { a, b, op }) => {
+ *     switch (op) {
+ *       case '+': return a + b;
+ *       case '-': return a - b;
+ *       case '*': return a * b;
+ *       case '/': return b !== 0 ? a / b : 'Division by zero';
+ *     }
  *   },
- *   func: (agent, { query, category, max_price }) => {
- *     return data_service.search({
- *       query,
- *       category: category || null,
- *       max_price: max_price ? parseFloat(max_price) : null
- *     });
- *   }
  * });
- *
- * // Uso de las herramientas
- * console.log(timestamp.name); // 'get_timestamp'
- * console.log(product_search.description); // 'Buscar productos...'
  * ```
  */
 export default class Tool<T = any> {
   /**
    * @description
-   * Nombre único de la herramienta.
+   * Unique name of the tool.
+   * Nombre unico de la herramienta.
    */
   readonly name: string;
 
   /**
    * @description
-   * Descripción de lo que hace la herramienta.
+   * Description of what the tool does.
+   * Descripcion de lo que hace la herramienta.
    */
   readonly description: string;
 
   /**
    * @description
-   * Esquema de parámetros de la herramienta.
+   * Parameter schema (Record or Zod).
+   * Esquema de parametros (Record o Zod).
    */
   readonly parameters: T | { input: string };
 
   /**
    * @description
-   * Función ejecutable de la herramienta.
+   * Executable function of the tool.
+   * Funcion ejecutable de la herramienta.
    */
-  readonly func: (
-    agent: Agent,
-    params: T extends object ? T : { input: string }
-  ) => any;
+  readonly func: (agent: Agent, params: InferParams<T>) => any;
 
   /**
    * @description
+   * Creates a simple tool with string input.
    * Crea una herramienta simple con entrada string.
    *
-   * @param name Nombre único de la herramienta
-   * @param handler Función que procesa la entrada y retorna el resultado
+   * @param name - Unique tool name / Nombre unico de la herramienta
+   * @param handler - Function processing input / Funcion que procesa la entrada
    *
    * @example
    * ```typescript
-   * const weather = new Tool('get_weather', (agent: Agent, input: string) => {
-   *   // input contiene la consulta del usuario
-   *   return "Sunny, 24°C in Madrid";
-   * });
+   * const weather = new Tool('get_weather', (agent, input) => "Sunny, 24C");
    * ```
    */
   constructor(name: string, handler: SimpleToolHandler);
 
   /**
    * @description
-   * Crea una herramienta avanzada con parámetros tipados.
+   * Creates an advanced tool with typed parameters.
+   * Crea una herramienta avanzada con parametros tipados.
    *
-   * @param name Nombre único de la herramienta
-   * @param options Configuración avanzada de la herramienta
+   * @param name - Unique tool name / Nombre unico de la herramienta
+   * @param options - Advanced configuration / Configuracion avanzada
    *
    * @example
    * ```typescript
-   * const calculator = new Tool('calculate', {
-   *   description: 'Realizar cálculos matemáticos básicos',
-   *   parameters: {
-   *     operation: 'Operación a realizar (+, -, *, /)',
-   *     a: 'Primer número',
-   *     b: 'Segundo número'
-   *   },
-   *   func: (agent, { operation, a, b }) => {
-   *     const num_a = parseFloat(a);
-   *     const num_b = parseFloat(b);
-   *     switch (operation) {
-   *       case '+': return num_a + num_b;
-   *       case '-': return num_a - num_b;
-   *       case '*': return num_a * num_b;
-   *       case '/': return num_b !== 0 ? num_a / num_b : 'Error: División por cero';
-   *       default: return 'Operación no válida';
-   *     }
-   *   }
+   * const search = new Tool('search', {
+   *   description: 'Search products',
+   *   parameters: z.object({ query: z.string().describe('Search term') }),
+   *   func: (agent, { query }) => catalog.search(query),
    * });
    * ```
    */
@@ -202,17 +205,19 @@ export default class Tool<T = any> {
 
   /**
    * @description
-   * Convierte la herramienta a formato JSON para serialización.
-   * Implementa el método nativo toJSON() de Node.js para compatibilidad
-   * con JSON.stringify() y otras operaciones de serialización.
+   * Converts the tool to JSON format for API serialization.
+   * Auto-detects Zod schemas and generates rich JSON Schema with proper types.
+   * Legacy Record schemas generate string-only properties with all params required.
    *
-   * @returns Representación JSON de la herramienta
+   * Convierte la herramienta a formato JSON para serializacion API.
+   * Auto-detecta schemas Zod y genera JSON Schema rico con tipos correctos.
+   * Schemas Record legacy generan propiedades tipo string con todos los params requeridos.
+   *
+   * @returns JSON representation compatible with OpenAI tool calling format
    *
    * @example
    * ```typescript
-   * const tool_data = tool.toJSON();
-   * console.log(JSON.stringify(tool)); // Usa automáticamente toJSON()
-   * // Resultado: { name: 'get_weather', description: '...', parameters: {...} }
+   * console.log(JSON.stringify(tool)); // uses toJSON() automatically
    * ```
    */
   toJSON(): {
@@ -220,42 +225,49 @@ export default class Tool<T = any> {
     function: {
       name: string;
       description: string;
-      parameters: {
-        type: "object";
-        properties: T | { input: string };
-      };
+      parameters: Record<string, any>;
     };
   } {
-    const parameters = {};
-    for (const k in this.parameters!) {
-      parameters[k] = {
-        type: "string",
-        description: this.parameters[k],
+    if (this.parameters && typeof (this.parameters as any).parse === "function") {
+      const { $schema, ...schema } = z.toJSONSchema(this.parameters as unknown as z.ZodType) as Record<string, any>;
+      return {
+        type: "function",
+        function: {
+          name: this.name,
+          description: this.description,
+          parameters: schema,
+        },
       };
+    }
+    const properties: Record<string, any> = {};
+    const required: string[] = [];
+    for (const k in this.parameters!) {
+      properties[k] = {
+        type: "string",
+        description: (this.parameters as any)[k],
+      };
+      required.push(k);
     }
     return {
       type: "function",
       function: {
         name: this.name,
         description: this.description,
-        parameters: {
-          type: "object",
-          properties: parameters as any,
-        },
+        parameters: { type: "object", properties, required },
       },
     };
   }
 
   /**
    * @description
-   * Retorna representación string de la herramienta para debugging.
+   * Returns string representation of the tool for debugging.
+   * Retorna representacion string de la herramienta para debugging.
    *
-   * @returns Descripción legible de la herramienta
+   * @returns Readable description / Descripcion legible
    *
    * @example
    * ```typescript
-   * console.log(tool.toString()); // "Tool(get_weather): Friendly weather assistant"
-   * console.log(String(tool));    // Usa automáticamente toString()
+   * console.log(String(tool)); // "Tool(get_weather): Friendly weather assistant"
    * ```
    */
   toString(): string {
