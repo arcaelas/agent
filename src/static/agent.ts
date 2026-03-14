@@ -263,8 +263,8 @@ export type StreamInput = string | Message | { role: "user" | "assistant"; conte
  * Con { stream: true }: retorna AsyncIterable de ProviderChunk (streaming).
  */
 export type Provider = {
-  (ctx: Context): ChatCompletionResponse | Promise<ChatCompletionResponse>;
-  (ctx: Context, opts: { stream: true }): AsyncIterable<ProviderChunk>;
+  (ctx: Context, opts?: { signal?: AbortSignal }): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true; signal?: AbortSignal }): AsyncIterable<ProviderChunk>;
 };
 
 /**
@@ -679,7 +679,7 @@ export default class Agent {
    * }
    * ```
    */
-  async *stream(input: StreamInput): AsyncGenerator<StreamChunk, void, unknown> {
+  async *stream(input: StreamInput, opts?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk, void, unknown> {
     const message =
       input instanceof Message
         ? input
@@ -687,7 +687,7 @@ export default class Agent {
           ? new Message({ role: "user", content: input })
           : new Message(input as any);
 
-    this._context.messages = this._context.messages.concat(message);
+    this._context.appendMessages(message);
 
     const PROVIDERS: Provider[] = [...this._providers];
     const FALLBACK: Provider[] = [];
@@ -696,12 +696,14 @@ export default class Agent {
     let iteration = 0;
 
     while ((PROVIDERS.length || FALLBACK.length) && iteration++ < MAX_LOOPS) {
+      if (opts?.signal?.aborted) return;
+
       const provider =
         PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
         FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
 
       try {
-        const chunks = provider!(this._context, { stream: true });
+        const chunks = provider!(this._context, { stream: true, signal: opts?.signal });
 
         let text_content = "";
         const tool_calls_acc: Map<number, { id: string; name: string; arguments: string }> = new Map();
@@ -730,7 +732,7 @@ export default class Agent {
             function: { name: tc.name, arguments: tc.arguments },
           }));
 
-          this._context.messages = this._context.messages.concat(
+          this._context.appendMessages(
             new Message({
               role: "assistant",
               content: text_content || null,
@@ -760,7 +762,7 @@ export default class Agent {
           );
 
           for (const r of results) {
-            this._context.messages = this._context.messages.concat(
+            this._context.appendMessages(
               new Message({ role: "tool", tool_call_id: r.id, content: r.content })
             );
             yield { role: "tool", name: r.name, tool_call_id: r.id, content: r.content };
@@ -770,7 +772,7 @@ export default class Agent {
         }
 
         if (text_content) {
-          this._context.messages = this._context.messages.concat(
+          this._context.appendMessages(
             new Message({ role: "assistant", content: text_content })
           );
         }
@@ -826,8 +828,8 @@ export default class Agent {
    * // 5. Responde al usuario
    * ```
    */
-  async call(prompt: string): Promise<[Message[], boolean]> {
-    this._context.messages = this._context.messages.concat(
+  async call(prompt: string, opts?: { signal?: AbortSignal }): Promise<[Message[], boolean]> {
+    this._context.appendMessages(
       new Message({
         role: "user",
         content: prompt,
@@ -838,15 +840,17 @@ export default class Agent {
     const TOOLS = this._context.tools;
 
     while (PROVIDERS.length || FALLBACK.length) {
+      if (opts?.signal?.aborted) return [this._context.messages, false];
+
       let success = true;
       const provider =
         PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
         FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
       try {
-        const response = await provider!(this._context);
+        const response = await provider!(this._context, opts?.signal ? { signal: opts.signal } : undefined);
         for (const choice of response.choices) {
           if (choice.message.content) {
-            this._context.messages = this._context.messages.concat(
+            this._context.appendMessages(
               new Message({
                 role: "assistant",
                 content: choice.message.content,
@@ -856,8 +860,7 @@ export default class Agent {
           if ((choice.message.tool_calls ?? []).length) {
             success = false;
 
-            // Añadir mensaje assistant con tool_calls al historial
-            this._context.messages = this._context.messages.concat(
+            this._context.appendMessages(
               new Message({
                 role: "assistant",
                 content: null,
@@ -921,9 +924,8 @@ export default class Agent {
               )
             );
 
-            // Añadir resultados de las herramientas al historial
-            this._context.messages = this._context.messages.concat(
-              _calls.map((c) => new Message(c))
+            this._context.appendMessages(
+              ..._calls.map((c) => new Message(c))
             );
           }
         }

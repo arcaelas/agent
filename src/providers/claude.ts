@@ -152,7 +152,7 @@ export default class Claude extends Function {
               input_schema: {
                 type: "object",
                 properties: json.function.parameters.properties,
-                required: Object.keys(json.function.parameters.properties),
+                required: json.function.parameters.required ?? Object.keys(json.function.parameters.properties ?? {}),
               },
             };
           })
@@ -178,14 +178,16 @@ export default class Claude extends Function {
       ...(stream && { stream: true }),
     });
 
-    return ((ctx: Context, opts?: { stream: true }): any => {
+    return ((ctx: Context, opts?: { stream?: true; signal?: AbortSignal }): any => {
       const payload = build_payload(ctx);
+      const signal = opts?.signal;
 
       if (!opts?.stream) {
         return (async (): Promise<ChatCompletionResponse> => {
           const response = await fetch(`${base_url}/messages`, {
             method: "POST",
             headers: build_headers(),
+            signal,
             body: JSON.stringify(build_body(payload, false)),
           });
 
@@ -245,6 +247,7 @@ export default class Claude extends Function {
         const response = await fetch(`${base_url}/messages`, {
           method: "POST",
           headers: build_headers(),
+          signal,
           body: JSON.stringify(build_body(payload, true)),
         });
 

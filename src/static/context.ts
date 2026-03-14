@@ -433,4 +433,26 @@ export default class Context {
     this._messages.length = 0; // Limpiar array existente
     this._messages.push(...messages.filter((m) => m instanceof Message));
   }
+
+  /**
+   * @description
+   * Appends messages to the local messages array without triggering the getter/setter cycle.
+   * Prevents parent message duplication that occurs when using the messages setter.
+   *
+   * Agrega mensajes al array local de mensajes sin disparar el ciclo getter/setter.
+   * Previene la duplicacion de mensajes padre que ocurre al usar el setter de messages.
+   *
+   * @param messages Messages to append / Mensajes a agregar
+   *
+   * @example
+   * ```typescript
+   * context.appendMessages(
+   *   new Message({ role: "user", content: "Hello" }),
+   *   new Message({ role: "assistant", content: "Hi!" })
+   * );
+   * ```
+   */
+  appendMessages(...messages: Message[]): void {
+    this._messages.push(...messages.filter((m) => m instanceof Message));
+  }
 }
