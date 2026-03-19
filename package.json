@@ -1,6 +1,6 @@
 {
   "name": "@arcaelas/agent",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "A small box of tools, which are implemented in different factions of the library.",
   "license": "ISC",
   "main": "build/index.js",
