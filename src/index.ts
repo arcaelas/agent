@@ -130,12 +130,12 @@
  * Exporta todas las interfaces, tipos y utilidades de los módulos principales.
  * Incluye tipos de configuración, interfaces de respuesta y utilidades auxiliares.
  */
-export * from "./static/agent";
-export * from "./static/context";
-export * from "./static/message";
-export * from "./static/metadata";
-export * from "./static/rule";
-export * from "./static/tool";
+export * from "./lib/agent";
+export * from "./lib/context";
+export * from "./lib/message";
+export * from "./lib/metadata";
+export * from "./lib/rule";
+export * from "./lib/tool";
 
 /* ================================================================================================
  * EXPORTACIONES DE CLASES PRINCIPALES
@@ -167,7 +167,7 @@ export * from "./static/tool";
  * @see {@link AgentOptions} Para opciones de configuración completas
  * @see {@link Provider} Para configuración de proveedores
  */
-export { default as Agent } from "./static/agent";
+export { default as Agent } from "./lib/agent";
 
 /**
  * @description
@@ -198,7 +198,7 @@ export { default as Agent } from "./static/agent";
  *
  * @see {@link ContextOptions} Para opciones de configuración
  */
-export { default as Context } from "./static/context";
+export { default as Context } from "./lib/context";
 
 /**
  * @description
@@ -238,7 +238,7 @@ export { default as Context } from "./static/context";
  *
  * @see {@link MessageOptions} Para opciones de configuración
  */
-export { default as Message } from "./static/message";
+export { default as Message } from "./lib/message";
 
 /**
  * @description
@@ -279,7 +279,7 @@ export { default as Message } from "./static/message";
  *
  * @see {@link MetadataValue} Para tipos de valores soportados
  */
-export { default as Metadata } from "./static/metadata";
+export { default as Metadata } from "./lib/metadata";
 
 /**
  * @description
@@ -329,7 +329,7 @@ export { default as Metadata } from "./static/metadata";
  * ];
  * ```
  */
-export { default as Rule } from "./static/rule";
+export { default as Rule } from "./lib/rule";
 
 /**
  * @description
@@ -411,7 +411,7 @@ export { default as Rule } from "./static/rule";
  *
  * @see {@link ToolFunction} Para definición de funciones de herramientas
  */
-export { default as Tool } from "./static/tool";
+export { default as Tool } from "./lib/tool";
 
 /* ================================================================================================
  * EXPORTACIONES DE HERRAMIENTAS INCORPORADAS
@@ -446,7 +446,7 @@ export { default as Tool } from "./static/tool";
  * });
  * ```
  */
-export { default as RemoteTool } from "./tools/RemoteTool";
+export { default as RemoteTool } from "./func/RemoteTool";
 
 /**
  * @description
@@ -471,7 +471,7 @@ export { default as RemoteTool } from "./tools/RemoteTool";
  * agent.tools = [system_time, madrid_time];
  * ```
  */
-export { default as TimeTool } from "./tools/Time";
+export { default as TimeTool } from "./func/Time";
 
 /* ================================================================================================
  * EXPORTACIONES DE PROVIDERS
@@ -503,8 +503,8 @@ export { default as TimeTool } from "./tools/Time";
  * });
  * ```
  */
-export { default as OpenAI } from "./providers/openai";
-export type { OpenAIProviderOptions } from "./providers/openai";
+export { default as OpenAI } from "./provider/openai";
+export type { OpenAIProviderOptions } from "./provider/openai";
 
 /**
  * @description
@@ -532,8 +532,8 @@ export type { OpenAIProviderOptions } from "./providers/openai";
  * });
  * ```
  */
-export { default as Groq } from "./providers/groq";
-export type { GroqProviderOptions } from "./providers/groq";
+export { default as Groq } from "./provider/groq";
+export type { GroqProviderOptions } from "./provider/groq";
 
 /**
  * @description
@@ -561,8 +561,8 @@ export type { GroqProviderOptions } from "./providers/groq";
  * });
  * ```
  */
-export { default as Claude } from "./providers/claude";
-export type { ClaudeProviderOptions } from "./providers/claude";
+export { default as Claude } from "./provider/claude";
+export type { ClaudeProviderOptions } from "./provider/claude";
 
 /**
  * @description
@@ -590,8 +590,8 @@ export type { ClaudeProviderOptions } from "./providers/claude";
  * });
  * ```
  */
-export { default as DeepSeek } from "./providers/deepseek";
-export type { DeepSeekProviderOptions } from "./providers/deepseek";
+export { default as DeepSeek } from "./provider/deepseek";
+export type { DeepSeekProviderOptions } from "./provider/deepseek";
 
 /**
  * @description
@@ -619,5 +619,6 @@ export type { DeepSeekProviderOptions } from "./providers/deepseek";
  * });
  * ```
  */
-export { default as ClaudeCode } from "./providers/claude-code";
-export type { ClaudeCodeOptions } from "./providers/claude-code";
+export { default as ClaudeCode } from "./provider/claude-code";
+export type { ClaudeCodeOptions } from "./provider/claude-code";
+

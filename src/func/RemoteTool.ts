@@ -49,8 +49,8 @@
  * });
  * ```
  */
-import Agent from "~/static/agent";
-import Tool, { ToolOptions } from "~/static/tool";
+import Agent from "~/lib/agent";
+import Tool, { ToolOptions } from "~/lib/tool";
 
 /**
  * @description

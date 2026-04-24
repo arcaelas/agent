@@ -455,4 +455,22 @@ export default class Context {
   appendMessages(...messages: Message[]): void {
     this._messages.push(...messages.filter((m) => m instanceof Message));
   }
+
+  /**
+   * @description
+   * Removes messages from the local array at a given absolute index (inherited + local).
+   * The index is converted to local by subtracting the length of inherited messages.
+   *
+   * Elimina mensajes del array local a partir de un indice absoluto (heredados + locales).
+   * El indice se convierte al local restando la longitud de mensajes heredados.
+   *
+   * @param absolute_index Absolute index in the full messages view / Indice absoluto en la vista completa
+   * @param delete_count Number of messages to remove / Cantidad a eliminar
+   */
+  spliceAt(absolute_index: number, delete_count: number): Message[] {
+    const inherited = this._contexts.reduce((n, c) => n + c.messages.length, 0);
+    const local = absolute_index - inherited;
+    if (local < 0) return [];
+    return this._messages.splice(local, delete_count);
+  }
 }

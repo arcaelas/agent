@@ -1,44 +1,44 @@
 /**
  * @fileoverview
- * Dual-mode DeepSeek provider for AI agents.
+ * Dual-mode Groq provider for AI agents.
  * Supports both non-streaming (ChatCompletionResponse) and streaming (ProviderChunk) modes.
- * DeepSeek is OpenAI-compatible and specializes in reasoning and code generation.
+ * Groq is OpenAI-compatible and offers ultra-fast inference with open-source models.
  *
- * Provider dual-mode de DeepSeek para agentes de IA.
+ * Provider dual-mode de Groq para agentes de IA.
  * Soporta modo sin streaming (ChatCompletionResponse) y streaming (ProviderChunk).
- * DeepSeek es compatible con OpenAI y especializado en razonamiento y generación de código.
+ * Groq es compatible con OpenAI y ofrece inferencia ultra-rápida con modelos open-source.
  *
  * @author Arcaelas Insiders
  * @version 2.0.0
  * @since 1.0.0
  */
 
-import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/static/agent";
-import type Context from "~/static/context";
-import { parse_sse } from "~/utils/sse";
+import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/lib/agent";
+import type Context from "~/lib/context";
+import { parse_sse } from "~/lib/sse";
 
 /**
  * @description
- * Configuration options for the DeepSeek provider.
- * Opciones de configuración para el provider de DeepSeek.
+ * Configuration options for the Groq provider.
+ * Opciones de configuración para el provider de Groq.
  */
-export interface DeepSeekProviderOptions {
+export interface GroqProviderOptions {
   /**
    * @description
-   * DeepSeek API key for authentication.
+   * Groq API key for authentication.
    */
   api_key: string;
 
   /**
    * @description
-   * Base URL for the DeepSeek API.
-   * Default: "https://api.deepseek.com/v1"
+   * Base URL for the Groq API.
+   * Default: "https://api.groq.com/openai/v1"
    */
   base_url?: string;
 
   /**
    * @description
-   * DeepSeek model to use.
+   * Groq model to use.
    */
   model: string;
 
@@ -63,31 +63,31 @@ export interface DeepSeekProviderOptions {
 
 /**
  * @description
- * Dual-mode DeepSeek provider. Returns a function that supports both
+ * Dual-mode Groq provider. Returns a function that supports both
  * non-streaming and streaming modes via the optional second argument.
  *
- * Provider dual-mode de DeepSeek. Retorna una función que soporta
+ * Provider dual-mode de Groq. Retorna una función que soporta
  * modo sin streaming y streaming via el segundo argumento opcional.
  *
  * @example
  * ```typescript
- * const deepseek = new DeepSeek({ api_key: "sk-...", model: "deepseek-chat" });
+ * const groq = new Groq({ api_key: "gsk_...", model: "llama-3.1-70b-versatile" });
  *
  * // Non-streaming (call)
- * const response = await deepseek(ctx);
+ * const response = await groq(ctx);
  *
  * // Streaming (stream)
- * for await (const chunk of deepseek(ctx, { stream: true })) {
+ * for await (const chunk of groq(ctx, { stream: true })) {
  *   // chunk: ProviderChunk
  * }
  * ```
  */
-export default interface DeepSeek extends Provider {}
-export default class DeepSeek extends Function {
-  constructor(options: DeepSeekProviderOptions) {
+export default interface Groq extends Provider { }
+export default class Groq extends Function {
+  constructor(options: GroqProviderOptions) {
     super();
 
-    const base_url = options.base_url ?? "https://api.deepseek.com/v1";
+    const base_url = options.base_url ?? "https://api.groq.com/openai/v1";
 
     const build_payload = (ctx: Context) => {
       const rules_messages = ctx.rules.length
@@ -132,7 +132,7 @@ export default class DeepSeek extends Function {
           });
 
           if (!response.ok) {
-            throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+            throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
           }
 
           return await response.json();
@@ -155,7 +155,7 @@ export default class DeepSeek extends Function {
         });
 
         if (!response.ok) {
-          throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+          throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
         }
 
         for await (const chunk of parse_sse(response)) {

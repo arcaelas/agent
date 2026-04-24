@@ -13,9 +13,9 @@
  * @since 1.0.0
  */
 
-import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/static/agent";
-import type Context from "~/static/context";
-import { parse_anthropic_sse } from "~/utils/sse";
+import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/lib/agent";
+import type Context from "~/lib/context";
+import { parse_anthropic_sse } from "~/lib/sse";
 
 /**
  * @description
@@ -84,7 +84,7 @@ export interface ClaudeProviderOptions {
  * }
  * ```
  */
-export default interface Claude extends Provider {}
+export default interface Claude extends Provider { }
 export default class Claude extends Function {
   constructor(options: ClaudeProviderOptions) {
     super();
@@ -145,17 +145,17 @@ export default class Claude extends Function {
 
       const tools = ctx.tools.length
         ? ctx.tools.map((t) => {
-            const json = t.toJSON();
-            return {
-              name: json.function.name,
-              description: json.function.description,
-              input_schema: {
-                type: "object",
-                properties: json.function.parameters.properties,
-                required: json.function.parameters.required ?? Object.keys(json.function.parameters.properties ?? {}),
-              },
-            };
-          })
+          const json = t.toJSON();
+          return {
+            name: json.function.name,
+            description: json.function.description,
+            input_schema: {
+              type: "object",
+              properties: json.function.parameters.properties,
+              required: json.function.parameters.required ?? Object.keys(json.function.parameters.properties ?? {}),
+            },
+          };
+        })
         : undefined;
 
       return { system_prompt, conversation_messages, tools };
@@ -229,8 +229,8 @@ export default class Claude extends Function {
               finish_reason:
                 claude_response.stop_reason === "end_turn" ? "stop"
                   : claude_response.stop_reason === "tool_use" ? "tool_calls"
-                  : claude_response.stop_reason === "max_tokens" ? "length"
-                  : null,
+                    : claude_response.stop_reason === "max_tokens" ? "length"
+                      : null,
             }],
             usage: {
               prompt_tokens: claude_response.usage?.input_tokens ?? 0,
@@ -293,8 +293,8 @@ export default class Claude extends Function {
                 finish_reason:
                   stop_reason === "end_turn" ? "stop"
                     : stop_reason === "tool_use" ? "tool_calls"
-                    : stop_reason === "max_tokens" ? "length"
-                    : stop_reason,
+                      : stop_reason === "max_tokens" ? "length"
+                        : stop_reason,
               };
             }
             continue;

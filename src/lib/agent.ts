@@ -41,7 +41,7 @@
  */
 
 import Context from "./context";
-import Message, { MessageOptions, ToolCall } from "./message";
+import Message, { ToolCall } from "./message";
 import Metadata from "./metadata";
 import Rule from "./rule";
 import Tool from "./tool";
@@ -153,12 +153,12 @@ export interface CompletionChoice {
    * - "function_call": El modelo llamó a una función (deprecated)
    */
   finish_reason:
-    | "stop"
-    | "length"
-    | "tool_calls"
-    | "content_filter"
-    | "function_call"
-    | null;
+  | "stop"
+  | "length"
+  | "tool_calls"
+  | "content_filter"
+  | "function_call"
+  | null;
 }
 
 /**
@@ -273,17 +273,19 @@ export type Provider = {
  */
 export interface AgentOptions {
   /**
+   * @deprecated
    * @description
    * Nombre único del agente utilizado como identificador.
    */
-  name: string;
+  name?: string;
 
   /**
+   * @deprecated
    * @description
    * Descripción del agente que actúa como system prompt base inmutable.
    * Define la personalidad y comportamiento fundamental del agente.
    */
-  description: string;
+  description?: string;
 
   /**
    * @description
@@ -326,6 +328,8 @@ export interface AgentOptions {
    * Array de funciones que procesan el contexto y retornan respuestas de ChatCompletion.
    */
   providers?: Provider[];
+
+  branches?: Array<AgentOptions | Agent | string>
 }
 
 /**
@@ -364,16 +368,18 @@ export interface AgentOptions {
  */
 export default class Agent {
   /**
+   * @deprecated
    * @description
    * Nombre único del agente utilizado como identificador.
    */
-  readonly name: string;
+  readonly name?: string;
 
   /**
+   * @deprecated
    * @description
    * Descripción inmutable del agente que define su personalidad y comportamiento base.
    */
-  readonly description: string;
+  readonly description?: string;
 
   /**
    * @description
@@ -386,6 +392,8 @@ export default class Agent {
    * Funciones de proveedores de IA configuradas para el agente.
    */
   private readonly _providers: Provider[];
+
+  private readonly _branches: Agent[]
 
   /**
    * @description
@@ -423,28 +431,22 @@ export default class Agent {
    * ```
    */
   constructor(options: AgentOptions) {
-    this.name = options.name;
-    this.description = options.description;
-
-    // Validaciones básicas
-    if (!this.name) {
-      throw new Error("El nombre del agente es requerido");
-    }
-    if (!this.description) {
-      throw new Error("La descripción del agente es requerida");
-    }
-
-    // Inicializar Context interno con todas las opciones
+    this._providers = options.providers || [];
     this._context = new Context({
+      tools: options.tools,
       context: options.contexts,
       metadata: options.metadata,
-      rules: options.rules,
-      tools: options.tools,
       messages: options.messages,
+      rules: [options.description && new Rule(options.description)]
+        .concat(options.rules ?? [])
+        .filter((r): r is Rule => r instanceof Rule),
     });
-
-    // Inicializar proveedores
-    this._providers = options.providers || [];
+    this._branches = ([] as unknown[]).concat(options.branches ?? []).map((branch) => {
+      if (branch instanceof Agent) return branch;
+      if (typeof branch === "string") return new Agent({ name: "AgentFlow", description: branch });
+      if (branch && typeof branch === "object") return new Agent({ name: "AgentFlow", ...(branch as AgentOptions) });
+      return null;
+    }).filter(Boolean) as Agent[];
   }
 
   /**
@@ -660,6 +662,120 @@ export default class Agent {
 
   /**
    * @description
+   * Procesa un prompt del usuario con manejo resiliente de proveedores y ejecución automática de tools.
+   *
+   * Implementa un loop completo de conversación:
+   * 1. Añade el prompt del usuario inmediatamente al contexto real
+   * 2. Itera por proveedores con resilience hasta obtener respuesta exitosa
+   * 3. Si la respuesta incluye tool calls, los ejecuta en paralelo con Promise.allSettled
+   * 4. Repite el ciclo hasta convergencia o fallo de todos los proveedores
+   * 5. Retorna el estado actual del contexto y un indicador de éxito
+   *
+   * @param prompt Mensaje del usuario a procesar
+   * @returns Tupla [mensajes del contexto actual, éxito del procesamiento]
+   *
+   * @example
+   * ```typescript
+   * const agent = new Agent({
+   *   name: "SearchAgent",
+   *   description: "Agent with search capabilities",
+   *   tools: [search_tool, database_tool],
+   *   providers: [openai_provider, claude_provider]
+   * });
+   *
+   * // Conversación simple
+   * const [messages, success] = await agent.call("Hello, how are you?");
+   * if (success) {
+   *   console.log("Conversación exitosa:", messages.map(m => `${m.role}: ${m.content}`));
+   * } else {
+   *   console.log("Conversación falló, mensajes actuales:", messages.length);
+   * }
+   *
+   * // Con tool calling automático
+   * const [search_messages, search_success] = await agent.call("Search for TypeScript tutorials");
+   * // El agente automáticamente:
+   * // 1. Recibe el prompt
+   * // 2. Decide usar search_tool
+   * // 3. Ejecuta la búsqueda
+   * // 4. Procesa los resultados
+   * // 5. Responde al usuario
+   * ```
+   */
+  async call(prompt: string, opts?: { signal?: AbortSignal }): Promise<[Message[], boolean]> {
+    let thinking = "";
+    for (const branch of this._branches) {
+      branch.messages = this.messages.concat(
+        thinking ? new Message({ role: "system", content: thinking }) : []
+      );
+      const [m, s] = await branch.call(prompt, opts);
+      if (s) thinking = m.filter((x) => x.role === "assistant" && x.content).at(-1)?.content ?? "";
+    }
+
+    const count = this.messages.length;
+    this._context.appendMessages(
+      ...(thinking ? [new Message({ role: "system", content: thinking })] : []),
+      new Message({ role: "user", content: prompt })
+    );
+    try {
+      const PROVIDERS: Provider[] = [...this._providers];
+      const FALLBACK: Provider[] = [];
+      while (PROVIDERS.length || FALLBACK.length) {
+        if (opts?.signal?.aborted) return [this._context.messages, false];
+        let success = true;
+        const provider =
+          PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
+          FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
+        try {
+          const response = await provider!(this._context, opts?.signal ? { signal: opts.signal } : undefined);
+          for (const choice of response.choices) {
+            if (choice.message.content) {
+              this._context.appendMessages(
+                new Message({ role: "assistant", content: choice.message.content })
+              );
+            }
+            const tool_calls = choice.message.tool_calls ?? [];
+            if (tool_calls.length) {
+              success = false;
+              this._context.appendMessages(
+                new Message({ role: "assistant", content: null, tool_calls })
+              );
+              const results = await Promise.all(
+                tool_calls.map(async (c) => {
+                  const T = this._context.tools.find((t) => t.name === c.function?.name);
+                  if (!T) return new Message({ role: "tool", tool_call_id: c.id, content: "Tool not found" });
+                  try {
+                    const args = c.function.arguments ? JSON.parse(c.function.arguments) : {};
+                    const r = await T.func(this, args);
+                    let content: string;
+                    if (r === undefined) content = "undefined";
+                    else if (typeof r === "function") content = "[Function]";
+                    else if (typeof r === "bigint") content = (r as bigint).toString();
+                    else { try { content = JSON.stringify(r); } catch { content = String(r); } }
+                    return new Message({ role: "tool", tool_call_id: c.id, content });
+                  } catch (e: any) {
+                    return new Message({ role: "tool", tool_call_id: c.id, content: e?.message ?? String(e) });
+                  }
+                })
+              );
+              this._context.appendMessages(...results);
+            }
+          }
+          if (success) return [this._context.messages, true];
+        } catch {
+          PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
+          const idx = FALLBACK.indexOf(provider!);
+          if (idx !== -1) FALLBACK.splice(idx, 1);
+          else FALLBACK.push(provider!);
+        }
+      }
+      return [this._context.messages, false];
+    } finally {
+      if (thinking) this._context.spliceAt(count, 1);
+    }
+  }
+
+  /**
+   * @description
    * Streams a conversation turn, yielding message-like chunks as they arrive.
    * Handles the full agentic loop internally: text streaming, tool execution,
    * and provider re-invocation. The consumer simply iterates chunks.
@@ -756,7 +872,7 @@ export default class Agent {
                 }
                 return { id: tc.id, name: tc.function.name, content };
               } catch (error: any) {
-                return { id: tc.id, name: tc.function.name, content: error.message ?? String(error) };
+                return { id: tc.id, name: tc.function.name, content: error?.message ?? String(error) };
               }
             })
           );
@@ -778,168 +894,12 @@ export default class Agent {
         }
 
         return;
-      } catch (_error) {
+      } catch {
         PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
         const idx = FALLBACK.indexOf(provider!);
         if (idx !== -1) FALLBACK.splice(idx, 1);
         else FALLBACK.push(provider!);
       }
     }
-  }
-
-  /**
-   * @description
-   * Procesa un prompt del usuario con manejo resiliente de proveedores y ejecución automática de tools.
-   *
-   * Implementa un loop completo de conversación:
-   * 1. Añade el prompt del usuario inmediatamente al contexto real
-   * 2. Itera por proveedores con resilience hasta obtener respuesta exitosa
-   * 3. Si la respuesta incluye tool calls, los ejecuta en paralelo con Promise.allSettled
-   * 4. Repite el ciclo hasta convergencia o fallo de todos los proveedores
-   * 5. Retorna el estado actual del contexto y un indicador de éxito
-   *
-   * @param prompt Mensaje del usuario a procesar
-   * @returns Tupla [mensajes del contexto actual, éxito del procesamiento]
-   *
-   * @example
-   * ```typescript
-   * const agent = new Agent({
-   *   name: "SearchAgent",
-   *   description: "Agent with search capabilities",
-   *   tools: [search_tool, database_tool],
-   *   providers: [openai_provider, claude_provider]
-   * });
-   *
-   * // Conversación simple
-   * const [messages, success] = await agent.call("Hello, how are you?");
-   * if (success) {
-   *   console.log("Conversación exitosa:", messages.map(m => `${m.role}: ${m.content}`));
-   * } else {
-   *   console.log("Conversación falló, mensajes actuales:", messages.length);
-   * }
-   *
-   * // Con tool calling automático
-   * const [search_messages, search_success] = await agent.call("Search for TypeScript tutorials");
-   * // El agente automáticamente:
-   * // 1. Recibe el prompt
-   * // 2. Decide usar search_tool
-   * // 3. Ejecuta la búsqueda
-   * // 4. Procesa los resultados
-   * // 5. Responde al usuario
-   * ```
-   */
-  async call(prompt: string, opts?: { signal?: AbortSignal }): Promise<[Message[], boolean]> {
-    this._context.appendMessages(
-      new Message({
-        role: "user",
-        content: prompt,
-      })
-    );
-    const PROVIDERS: Provider[] = [...this._providers];
-    const FALLBACK: Provider[] = [];
-    const TOOLS = this._context.tools;
-
-    while (PROVIDERS.length || FALLBACK.length) {
-      if (opts?.signal?.aborted) return [this._context.messages, false];
-
-      let success = true;
-      const provider =
-        PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
-        FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
-      try {
-        const response = await provider!(this._context, opts?.signal ? { signal: opts.signal } : undefined);
-        for (const choice of response.choices) {
-          if (choice.message.content) {
-            this._context.appendMessages(
-              new Message({
-                role: "assistant",
-                content: choice.message.content,
-              })
-            );
-          }
-          if ((choice.message.tool_calls ?? []).length) {
-            success = false;
-
-            this._context.appendMessages(
-              new Message({
-                role: "assistant",
-                content: null,
-                tool_calls: choice.message.tool_calls ?? undefined,
-              })
-            );
-
-            // Ejecutar todas las herramientas en paralelo
-            const _calls = await Promise.all(
-              (choice.message.tool_calls ?? []).map(
-                async (c): Promise<MessageOptions> => {
-                  try {
-                    const T = TOOLS.find((t) => t.name === c.function?.name);
-                    if (!T) {
-                      return {
-                        role: "tool",
-                        tool_call_id: c.id,
-                        content: "Tool not found",
-                      };
-                    }
-
-                    const result = await T.func(
-                      this,
-                      c.function.arguments
-                        ? JSON.parse(c.function.arguments)
-                        : {}
-                    );
-
-                    // Serialización segura que maneja valores especiales
-                    let content: string;
-
-                    // Verificar casos especiales antes de JSON.stringify
-                    if (result === undefined) {
-                      content = "undefined";
-                    } else if (typeof result === "function") {
-                      content = "[Function]";
-                    } else if (typeof result === "bigint") {
-                      content = (result as bigint).toString();
-                    } else {
-                      try {
-                        content = JSON.stringify(result);
-                      } catch {
-                        // Manejar errores de serialización (ej: referencias circulares)
-                        content = String(result);
-                      }
-                    }
-
-                    return {
-                      role: "tool",
-                      tool_call_id: c.id,
-                      content,
-                    };
-                  } catch (error: any) {
-                    return {
-                      role: "tool",
-                      tool_call_id: c.id,
-                      content: error.message ?? String(error),
-                    };
-                  }
-                }
-              )
-            );
-
-            this._context.appendMessages(
-              ..._calls.map((c) => new Message(c))
-            );
-          }
-        }
-        if (success) {
-          return [this._context.messages, true];
-        } else continue;
-      } catch (_error) {
-        PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
-        const idx = FALLBACK.indexOf(provider!);
-        if (idx !== -1) FALLBACK.splice(idx, 1);
-        else FALLBACK.push(provider!);
-      }
-    }
-
-    return [this._context.messages, false];
   }
 }

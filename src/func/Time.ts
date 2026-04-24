@@ -27,8 +27,8 @@
  * // Respuesta: "12/27/2024, 10:30:45 AM"
  * ```
  */
-import Agent from "~/static/agent";
-import Tool from "~/static/tool";
+import Agent from "~/lib/agent";
+import Tool from "~/lib/tool";
 
 /**
  * @description

@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { z } from "zod";
-import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/static/agent";
-import type Context from "~/static/context";
+import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/lib/agent";
+import type Context from "~/lib/context";
 
 const MODELS: Record<string, string> = { opus: "claude-opus-4-6", sonnet: "claude-sonnet-4-6", haiku: "claude-haiku-4-5-20251001" };
 
