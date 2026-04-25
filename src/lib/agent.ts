@@ -104,6 +104,13 @@ export interface ResponseMessage {
 
   /**
    * @description
+   * Texto de razonamiento (thinking) del modelo, si lo expone el provider.
+   * Solo informativo; la libreria no lo persiste en el thread ni lo reenvia.
+   */
+  reasoning_content?: string;
+
+  /**
+   * @description
    * Indicador de rechazo cuando el modelo se niega a responder.
    */
   refusal?: string | null;
@@ -225,6 +232,7 @@ export interface ChatCompletionResponse {
  */
 export type ProviderChunk =
   | { type: "text_delta"; content: string }
+  | { type: "thinking_delta"; content: string }
   | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
   | { type: "finish"; finish_reason: string };
 
@@ -238,6 +246,8 @@ export type ProviderChunk =
  */
 export type StreamChunk =
   | { role: "assistant"; content: string }
+  | { role: "thinking"; content: string }
+  | { role: "tool_call"; name: string; tool_call_id: string; arguments: string }
   | { role: "tool"; name: string; tool_call_id: string; content: string };
 
 /**
@@ -796,110 +806,127 @@ export default class Agent {
    * ```
    */
   async *stream(input: StreamInput, opts?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk, void, unknown> {
+    const prompt =
+      typeof input === "string"
+        ? input
+        : input instanceof Message
+          ? input.content ?? ""
+          : input.content ?? "";
+    let thinking = "";
+    for (const branch of this._branches) {
+      branch.messages = this.messages.concat(
+        thinking ? new Message({ role: "system", content: thinking }) : []
+      );
+      const [m, s] = await branch.call(prompt, opts);
+      if (s) thinking = m.filter((x) => x.role === "assistant" && x.content).at(-1)?.content ?? "";
+    }
+    const count = this.messages.length;
     const message =
       input instanceof Message
         ? input
         : typeof input === "string"
           ? new Message({ role: "user", content: input })
           : new Message(input as any);
-
-    this._context.appendMessages(message);
-
-    const PROVIDERS: Provider[] = [...this._providers];
-    const FALLBACK: Provider[] = [];
-    const TOOLS = this._context.tools;
-    const MAX_LOOPS = 10;
-    let iteration = 0;
-
-    while ((PROVIDERS.length || FALLBACK.length) && iteration++ < MAX_LOOPS) {
-      if (opts?.signal?.aborted) return;
-
-      const provider =
-        PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
-        FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
-
-      try {
-        const chunks = provider!(this._context, { stream: true, signal: opts?.signal });
-
-        let text_content = "";
-        const tool_calls_acc: Map<number, { id: string; name: string; arguments: string }> = new Map();
-        let has_tool_calls = false;
-
-        for await (const chunk of chunks) {
-          if (chunk.type === "text_delta") {
-            text_content += chunk.content;
-            yield { role: "assistant", content: chunk.content };
+    this._context.appendMessages(
+      ...(thinking ? [new Message({ role: "system", content: thinking })] : []),
+      message
+    );
+    try {
+      let iteration = 0;
+      const FALLBACK: Provider[] = [];
+      const PROVIDERS: Provider[] = this._providers.concat()
+      while ((PROVIDERS.length || FALLBACK.length) && iteration++ < 10) {
+        if (opts?.signal?.aborted) return;
+        const provider =
+          PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
+          FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
+        try {
+          let text_content = "";
+          let has_tool_calls = false;
+          const chunks = provider!(this._context, { stream: true, signal: opts?.signal });
+          const tool_calls_acc: Map<number, { id: string; name: string; arguments: string }> = new Map();
+          for await (const chunk of chunks) {
+            if (chunk.type === "thinking_delta") {
+              yield { role: "thinking", content: chunk.content };
+              continue;
+            }
+            if (chunk.type === "text_delta") {
+              text_content += chunk.content;
+              yield { role: "assistant", content: chunk.content };
+            }
+            if (chunk.type === "tool_call_delta") {
+              has_tool_calls = true;
+              const existing = tool_calls_acc.get(chunk.index) ?? { id: "", name: "", arguments: "" };
+              if (chunk.id) existing.id = chunk.id;
+              if (chunk.name) existing.name = chunk.name;
+              if (chunk.arguments_delta) existing.arguments += chunk.arguments_delta;
+              tool_calls_acc.set(chunk.index, existing);
+            }
           }
-
-          if (chunk.type === "tool_call_delta") {
-            has_tool_calls = true;
-            const existing = tool_calls_acc.get(chunk.index) ?? { id: "", name: "", arguments: "" };
-            if (chunk.id) existing.id = chunk.id;
-            if (chunk.name) existing.name = chunk.name;
-            if (chunk.arguments_delta) existing.arguments += chunk.arguments_delta;
-            tool_calls_acc.set(chunk.index, existing);
-          }
-        }
-
-        if (has_tool_calls) {
-          const tool_calls_arr = [...tool_calls_acc.values()].map((tc) => ({
-            id: tc.id,
-            type: "function" as const,
-            function: { name: tc.name, arguments: tc.arguments },
-          }));
-
-          this._context.appendMessages(
-            new Message({
-              role: "assistant",
-              content: text_content || null,
-              tool_calls: tool_calls_arr,
-            })
-          );
-
-          const results = await Promise.all(
-            tool_calls_arr.map(async (tc) => {
-              const tool = TOOLS.find((t) => t.name === tc.function.name);
-              if (!tool) return { id: tc.id, name: tc.function.name, content: "Tool not found" };
-              try {
-                const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
-                const result = await tool.func(this, args);
-                let content: string;
-                if (result === undefined) content = "undefined";
-                else if (typeof result === "function") content = "[Function]";
-                else if (typeof result === "bigint") content = (result as bigint).toString();
-                else {
-                  try { content = JSON.stringify(result); } catch { content = String(result); }
-                }
-                return { id: tc.id, name: tc.function.name, content };
-              } catch (error: any) {
-                return { id: tc.id, name: tc.function.name, content: error?.message ?? String(error) };
-              }
-            })
-          );
-
-          for (const r of results) {
+          if (has_tool_calls) {
+            const tool_calls_arr = [...tool_calls_acc.values()].map((tc) => ({
+              id: tc.id,
+              type: "function" as const,
+              function: { name: tc.name, arguments: tc.arguments },
+            }));
             this._context.appendMessages(
-              new Message({ role: "tool", tool_call_id: r.id, content: r.content })
+              new Message({
+                role: "assistant",
+                content: text_content || null,
+                tool_calls: tool_calls_arr,
+              })
             );
-            yield { role: "tool", name: r.name, tool_call_id: r.id, content: r.content };
+            for (const tc of tool_calls_arr) {
+              yield {
+                role: "tool_call",
+                name: tc.function.name,
+                tool_call_id: tc.id,
+                arguments: tc.function.arguments,
+              };
+            }
+            const results = await Promise.all(
+              tool_calls_arr.map(async (tc) => {
+                const tool = this._context.tools.find((t) => t.name === tc.function.name);
+                if (!tool) return { id: tc.id, name: tc.function.name, content: "Tool not found" };
+                try {
+                  const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+                  const result = await tool.func(this, args);
+                  let content: string;
+                  if (result === undefined) content = "undefined";
+                  else if (typeof result === "function") content = "[Function]";
+                  else if (typeof result === "bigint") content = (result as bigint).toString();
+                  else {
+                    try { content = JSON.stringify(result); } catch { content = String(result); }
+                  }
+                  return { id: tc.id, name: tc.function.name, content };
+                } catch (error: any) {
+                  return { id: tc.id, name: tc.function.name, content: error?.message ?? String(error) };
+                }
+              })
+            );
+            for (const r of results) {
+              this._context.appendMessages(
+                new Message({ role: "tool", tool_call_id: r.id, content: r.content })
+              );
+              yield { role: "tool", name: r.name, tool_call_id: r.id, content: r.content };
+            }
+            continue;
           }
-
-          continue;
+          if (text_content) {
+            this._context.appendMessages(
+              new Message({ role: "assistant", content: text_content })
+            );
+          }
+          return;
+        } catch {
+          PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
+          const idx = FALLBACK.indexOf(provider!);
+          if (idx !== -1) FALLBACK.splice(idx, 1);
+          else FALLBACK.push(provider!);
         }
-
-        if (text_content) {
-          this._context.appendMessages(
-            new Message({ role: "assistant", content: text_content })
-          );
-        }
-
-        return;
-      } catch {
-        PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
-        const idx = FALLBACK.indexOf(provider!);
-        if (idx !== -1) FALLBACK.splice(idx, 1);
-        else FALLBACK.push(provider!);
       }
+    } finally {
+      if (thinking) this._context.spliceAt(count, 1);
     }
   }
 }

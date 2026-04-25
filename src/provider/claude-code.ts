@@ -191,6 +191,8 @@ async function* stream(prompt: any, opts: any, fallback: boolean): AsyncGenerato
     for await (const msg of query({ prompt, options: opts })) {
       if (msg.type !== "stream_event") continue;
       const ev = (msg as any).event;
+      if (ev.type === "content_block_delta" && ev.delta?.type === "thinking_delta" && ev.delta.thinking)
+        yield { type: "thinking_delta", content: ev.delta.thinking };
       if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text)
         yield { type: "text_delta", content: ev.delta.text };
       if (ev.type === "message_delta" && ev.delta?.stop_reason === "end_turn") {

@@ -203,6 +203,11 @@ export default class Claude extends Function {
             .map((block: any) => block.text)
             .join("\n");
 
+          const reasoning_content = content_blocks
+            .filter((block: any) => block.type === "thinking")
+            .map((block: any) => block.thinking)
+            .join("\n") || undefined;
+
           const tool_calls = content_blocks
             .filter((block: any) => block.type === "tool_use")
             .map((block: any) => ({
@@ -225,6 +230,7 @@ export default class Claude extends Function {
                 role: "assistant",
                 content: text_content || null,
                 tool_calls: tool_calls.length > 0 ? tool_calls : undefined,
+                reasoning_content,
               },
               finish_reason:
                 claude_response.stop_reason === "end_turn" ? "stop"
@@ -272,6 +278,9 @@ export default class Claude extends Function {
           }
 
           if (event === "content_block_delta") {
+            if (data.delta?.type === "thinking_delta" && data.delta.thinking) {
+              yield { type: "thinking_delta", content: data.delta.thinking };
+            }
             if (data.delta?.type === "text_delta" && data.delta.text) {
               yield { type: "text_delta", content: data.delta.text };
             }

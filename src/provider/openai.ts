@@ -160,6 +160,10 @@ export default class OpenAI extends Function {
           const delta = chunk.choices?.[0]?.delta;
           if (!delta) continue;
 
+          if (delta.reasoning_content) {
+            yield { type: "thinking_delta", content: delta.reasoning_content };
+          }
+
           if (delta.content) {
             yield { type: "text_delta", content: delta.content };
           }
