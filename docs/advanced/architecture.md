@@ -37,16 +37,18 @@ Internal design and system architecture of @arcaelas/agent.
 
 **Key Methods**:
 - `constructor(options)` - Initialize with configuration
-- `call(prompt)` - Execute conversation with providers and tools
+- `call(prompt, opts?)` - Execute conversation with providers and tools
+- `stream(input, opts?)` - Stream conversation turn, yielding `StreamChunk`
 - `get/set metadata`, `rules`, `tools`, `messages` - Access context properties
 
 **Execution Flow** (`call` method):
-1. Add user message to context
-2. Loop through providers with failover
-3. Call provider with current context
-4. If response includes tool_calls, execute them in parallel
-5. Add tool results to context and loop again
-6. Return when completion has no tool_calls
+1. Run branch pipeline (if `branches` configured): each branch inherits thread + accumulated thinking as `system`
+2. Inject last branch thinking as ephemeral `system` message
+3. Add user message to context
+4. Loop through providers with random selection and failover
+5. If response includes tool_calls, execute them in parallel
+6. Add tool results to context and repeat
+7. Return when completion has no tool_calls; remove ephemeral thinking
 
 ### 2. Context
 
@@ -71,16 +73,16 @@ Internal design and system architecture of @arcaelas/agent.
 **Architecture**:
 ```typescript
 Metadata {
-  _brokers: Metadata[]   // Parent metadatas
-  _storage: Map          // Local storage
+  _broker: Metadata[]              // Parent metadatas
+  _data: Record<string, string | null>  // Local storage (null = deleted)
 
   get(key) {
-    // Check local first
-    // Then check brokers in order
+    // Walk broker nodes first (accumulating last non-null)
+    // Then return _data[key] ?? accumulated result
   }
 
   set(key, value) {
-    // Always store locally
+    // Store in _data (null marks as deleted)
     return this  // For chaining
   }
 }
@@ -104,9 +106,7 @@ Metadata {
 
 **Responsibility**: Define behavioral guidelines
 
-**Types**:
-- **Static**: `new Rule(content)` - Always applies
-- **Conditional**: `new Rule(content, { when })` - Applies when condition met
+**Single constructor**: `new Rule(description)` — always active. There is no conditional `when` variant.
 
 ### 6. Message
 
@@ -124,12 +124,18 @@ Metadata {
 
 **Signature**:
 ```typescript
-type Provider = (ctx: Context) => ChatCompletionResponse | Promise<ChatCompletionResponse>
+type Provider = {
+  (ctx: Context, opts?: { signal?: AbortSignal }): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true; signal?: AbortSignal }): AsyncIterable<ProviderChunk>;
+};
 ```
 
 **Contract**:
-- Input: Context with messages, tools, metadata
-- Output: ChatCompletionResponse (OpenAI-compatible format)
+- Input: `Context` with messages, tools, rules, metadata
+- Output (non-stream): `ChatCompletionResponse` (OpenAI-compatible format)
+- Output (stream): `AsyncIterable<ProviderChunk>` — includes `thinking_delta` for model reasoning
+
+Built-in provider classes (`OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`) extend `Function` and are callable as providers. They parse model thinking natively and emit it as `thinking_delta` chunks.
 
 ## Data Flow
 

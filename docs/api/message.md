@@ -32,7 +32,7 @@ Creates a new message with role-specific options.
 ```typescript
 type MessageOptions =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string | null }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
   | { role: "system"; content: string }
   | { role: "tool"; content: string; tool_call_id: string };
 ```
@@ -193,8 +193,9 @@ console.log(message.length); // 11
 ```typescript
 toJSON(): {
   role: MessageRole;
-  content: string;
+  content: string | null;
   tool_call_id?: string;
+  tool_calls?: ToolCall[];
   timestamp: string;
 }
 ```
@@ -442,22 +443,23 @@ Messages are validated during construction:
 // ✅ Valid messages
 new Message({ role: "user", content: "Hello" });
 new Message({ role: "tool", content: "Data", tool_call_id: "123" });
+new Message({ role: "assistant", content: null, tool_calls: [/* ... */] });
 
-// ❌ Invalid - missing tool_call_id for tool message
+// ❌ Invalid - missing tool_call_id for tool message (runtime error)
 try {
   new Message({ role: "tool", content: "Data" } as any);
 } catch (error) {
   console.error(error); // "Los mensajes de herramienta requieren un tool_call_id"
 }
 
-// ❌ Invalid - missing content
+// ❌ Invalid - assistant null content without tool_calls (runtime error)
 try {
-  new Message({ role: "user", content: "" } as any);
+  new Message({ role: "assistant", content: null } as any);
 } catch (error) {
-  console.error(error); // "El contenido del mensaje es requerido"
+  console.error(error); // "Los mensajes assistant con content null requieren tool_calls"
 }
 
-// ❌ Invalid - missing role
+// ❌ Invalid - missing role (runtime error)
 try {
   new Message({ content: "Hello" } as any);
 } catch (error) {

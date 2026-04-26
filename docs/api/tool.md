@@ -78,12 +78,36 @@ interface ToolOptions<T = Record<string, string>> {
   /** Clear description of what the tool does */
   description: string;
 
-  /** Parameter schema with descriptions */
+  /** Parameter schema: Record<string,string> for legacy or Zod schema for typed params */
   parameters?: T;
 
   /** Function to execute (sync or async) */
-  func(agent: Agent, params: T): string | Promise<string>;
+  func(agent: Agent, params: InferParams<T>): any;
 }
+```
+
+`parameters` accepts either a `Record<string, string>` (values are descriptions) or a **Zod schema** (`z.ZodObject`). With Zod, full type inference and JSON Schema generation are automatic:
+
+```typescript
+import { z } from 'zod';
+import { Tool } from '@arcaelas/agent';
+
+const calc = new Tool('calculate', {
+  description: 'Perform basic arithmetic',
+  parameters: z.object({
+    a: z.number().describe('First number'),
+    b: z.number().describe('Second number'),
+    op: z.enum(['+', '-', '*', '/']).describe('Operation'),
+  }),
+  func: (agent, { a, b, op }) => {
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return b !== 0 ? a / b : 'Division by zero';
+    }
+  },
+});
 ```
 
 **Example:**
@@ -183,7 +207,7 @@ Parameter schema describing expected inputs. Simple tools get `{ input: string }
 ```typescript
 // Simple tool parameters
 const simple = new Tool('greet', (agent, input) => `Hello ${input}`);
-console.log(simple.parameters); // { input: "Entrada para la herramienta" }
+console.log(simple.parameters); // { input: "<tool-input>" }
 
 // Advanced tool parameters
 const advanced = new Tool('search', {
@@ -225,15 +249,19 @@ console.log(result); // "HELLO"
 
 ```typescript
 toJSON(): {
-  name: string;
-  description: string;
-  parameters: T | { input: string };
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, any>;  // JSON Schema
+  };
 }
 ```
 
-Serializes tool metadata (excludes the function). Called automatically by `JSON.stringify()`.
+Serializes the tool to OpenAI-compatible function-calling format. Called automatically by `JSON.stringify()`.
 
-**Returns:** Serializable representation
+- If `parameters` is a Zod schema, it is converted to JSON Schema via `z.toJSONSchema()`.
+- If `parameters` is a `Record<string, string>`, each key becomes a `{ type: "string", description: ... }` property, all required.
 
 **Example:**
 
@@ -248,22 +276,26 @@ const tool = new Tool('calculator', {
   func: (agent) => "..."
 });
 
-// Automatic serialization
-const json = JSON.stringify(tool);
-console.log(json);
+console.log(JSON.stringify(tool));
 // {
-//   "name": "calculator",
-//   "description": "Basic math operations",
-//   "parameters": {
-//     "operation": "+, -, *, /",
-//     "a": "First number",
-//     "b": "Second number"
+//   "type": "function",
+//   "function": {
+//     "name": "calculator",
+//     "description": "Basic math operations",
+//     "parameters": {
+//       "type": "object",
+//       "properties": {
+//         "operation": { "type": "string", "description": "+, -, *, /" },
+//         "a": { "type": "string", "description": "First number" },
+//         "b": { "type": "string", "description": "Second number" }
+//       },
+//       "required": ["operation", "a", "b"]
+//     }
 //   }
 // }
 
-// Manual call
-const data = tool.toJSON();
-console.log(data.name); // "calculator"
+// Pass directly to provider
+const json_tool = tool.toJSON();
 ```
 
 ### toString()

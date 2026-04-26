@@ -42,7 +42,7 @@ const openai_provider: Provider = async (ctx: Context) => {
   const response = await openai.chat.completions.create({
     model: "gpt-4",
     messages: ctx.messages.map(m => ({
-      role: m.role === 'tool' ? 'function' : m.role,
+      role: m.role,
       content: m.content
     }))
   });
@@ -63,7 +63,7 @@ const anthropic_provider: Provider = async (ctx: Context) => {
   const system_message = ctx.messages.find(m => m.role === 'system');
 
   const response = await anthropic.messages.create({
-    model: "claude-3-sonnet-20240229",
+    model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system: system_message?.content || '',
     messages: claude_messages
@@ -98,7 +98,7 @@ const groq_provider: Provider = async (ctx: Context) => {
   const response = await groq.chat.completions.create({
     model: "mixtral-8x7b-32768",
     messages: ctx.messages.map(m => ({
-      role: m.role === 'tool' ? 'function' : m.role,
+      role: m.role,
       content: m.content || ''
     }))
   });

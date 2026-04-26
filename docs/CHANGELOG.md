@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## \[1.8.0]
+
+### Added
+
+- `branches` option on `AgentOptions`: array of sub-agents (`Agent`, `AgentOptions`, or description string) that run sequentially before each `call()` / `stream()` turn, building accumulated thinking injected as ephemeral `system` message.
+- `Agent.stream()` method: async generator yielding `StreamChunk` (`assistant`, `thinking`, `tool_call`, `tool` roles).
+- `ProviderChunk { type: "thinking_delta" }`: all built-in providers (`OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`) parse native model thinking.
+- `ResponseMessage.reasoning_content?: string` optional field.
+- Built-in tools: `AgentTool`, `AskTool`, `ChoiceTool`, `SleepTool`.
+- Context constructor now accepts plain objects: `metadata` as `Record<string,string>`, `rules` as `string | string[]`, `messages` as `MessageOptions | MessageOptions[]`.
+
+### Changed
+
+- Context setters (`messages`, `rules`, `tools`) are now idempotent: filter inherited items by reference before storing locals.
+- `AgentOptions.name` and `AgentOptions.description` are now `deprecated` — `name`/`description` props are always `undefined` at runtime; `description` is converted to a `Rule` in the internal Context.
+
+### Removed
+
+- `Context.appendMessages()` method.
+- `Context.spliceAt()` method.
+
+## \[1.7.0]
+
+### Added
+
+- Five built-in provider classes: `OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`.
+
 ## \[1.0.4] - 2025-07-17
 
 ### Added

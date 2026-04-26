@@ -33,19 +33,24 @@ interface ContextOptions {
   /** Parent context(s) for hierarchical inheritance */
   context?: Context | Context[];
 
-  /** Metadata instance(s) for configuration */
-  metadata?: Metadata | Metadata[];
+  /** Metadata instance(s) or plain Record<string, string> objects */
+  metadata?: Metadata | Metadata[] | Record<string, string>;
 
-  /** Rule instance(s) for behavioral guidelines */
-  rules?: Rule | Rule[];
+  /** Rule instance(s) or plain strings (auto-converted to new Rule(s)) */
+  rules?: Rule | Rule[] | string | string[];
 
   /** Tool instance(s) for available functions */
   tools?: Tool | Tool[];
 
-  /** Message instance(s) for conversation history */
-  messages?: Message | Message[];
+  /** Message instance(s) or plain MessageOptions objects (auto-converted) */
+  messages?: Message | Message[] | MessageOptions | MessageOptions[];
 }
 ```
+
+All properties are optional. The constructor accepts plain objects in addition to class instances:
+- `metadata` accepts `Record<string, string>` — each entry is loaded into a new `Metadata` node.
+- `rules` accepts `string` or `string[]` — each string is wrapped in `new Rule(s)`.
+- `messages` accepts `MessageOptions` or `MessageOptions[]` — each plain object is wrapped in `new Message(...)`.
 
 All properties are optional, allowing you to create empty contexts or fully configured ones.
 
@@ -64,9 +69,17 @@ const ctx = new Context({});
 ```typescript
 import { Context, Metadata, Rule } from '@arcaelas/agent';
 
+// Using class instances
 const ctx = new Context({
   metadata: new Metadata().set("app", "MyApp").set("version", "1.0"),
   rules: [new Rule("Maintain professional tone")]
+});
+
+// Using plain objects (also valid)
+const ctx2 = new Context({
+  metadata: { app: "MyApp", version: "1.0" },
+  rules: ["Maintain professional tone"],
+  messages: [{ role: "user", content: "Hello" }]
 });
 
 console.log(ctx.metadata.get("app")); // "MyApp"
@@ -96,7 +109,7 @@ console.log(child_ctx.rules.length);                // 2 (parent + local)
 
 ```typescript
 const auth_ctx = new Context({
-  metadata: new Metadata().set("auth_enabled", true)
+  metadata: new Metadata().set("auth_enabled", "true")
 });
 
 const logging_ctx = new Context({
@@ -157,8 +170,7 @@ Combined rules from parent context(s) and local rules.
 
 **Behavior:**
 - Returns parent rules first, then local rules
-- Setter replaces only local rules (doesn't affect parent)
-- Rules aggregate (don't deduplicate)
+- Setter is **idempotent**: filters out inherited rules by reference equality before storing locals. Rules aggregate (no deduplication by content).
 
 **Example:**
 
@@ -193,9 +205,9 @@ set tools(tools: Tool[])
 Combined tools from parent context(s) and local tools with automatic deduplication by name.
 
 **Behavior:**
-- Local tools override parent tools with same name
+- Local tools override parent tools with same name (deduplication by name)
 - Returns unique tools only (no duplicates)
-- Setter replaces only local tools
+- Setter is **idempotent**: filters out inherited tools by reference equality before storing locals
 
 **Example:**
 
@@ -235,7 +247,7 @@ Combined message history from parent context(s) and local messages.
 **Behavior:**
 - Returns parent messages first, then local messages
 - Maintains chronological order (parent → child)
-- Setter replaces only local messages
+- Setter is **idempotent**: filters out inherited messages by reference equality before storing locals. This means `ctx.messages = ctx.messages.concat(x)` is safe — it won't duplicate inherited messages.
 
 **Example:**
 
@@ -257,13 +269,15 @@ const child_ctx = new Context({
 
 console.log(child_ctx.messages.length); // 2
 
-// Add new message
-child_ctx.messages.push(
+// Idempotent setter — safe to concat without duplicating inherited messages
+child_ctx.messages = child_ctx.messages.concat(
   new Message({ role: "assistant", content: "Hi there!" })
 );
 
 console.log(child_ctx.messages.length); // 3
 ```
+
+> **Removed methods:** `appendMessages()` and `spliceAt()` no longer exist. Use the idempotent setter with array spread/concat instead.
 
 ## Inheritance Rules
 
@@ -271,7 +285,7 @@ Understanding how properties are inherited:
 
 | Property | Inheritance Behavior | Override Behavior | Deduplication |
 |----------|---------------------|-------------------|---------------|
-| **metadata** | Merged (parent + child) | Child overrides parent keys | By key |
+| **metadata** | Resolved via broker (parent + child) | Child overrides parent keys (last writer wins) | None — last value at read time |
 | **rules** | Concatenated (parent + child) | No override, aggregates | None |
 | **tools** | Merged (parent + child) | Child overrides by name | By name |
 | **messages** | Concatenated (parent + child) | No override, aggregates | None |
@@ -412,7 +426,7 @@ Each context should represent a single concern:
 ```typescript
 // ✅ Good: Focused contexts
 const auth_ctx = new Context({
-  metadata: new Metadata().set("auth_enabled", true)
+  metadata: new Metadata().set("auth_enabled", "true")
 });
 
 const logging_ctx = new Context({

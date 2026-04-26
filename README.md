@@ -353,7 +353,7 @@ const advanced_agent = new Agent({
       });
 
       return await anthropic.messages.create({
-        model: "claude-3-sonnet-20240229",
+        model: "claude-sonnet-4-5",
         max_tokens: 4000,
         messages: ctx.messages.map(m => ({
           role: m.role === "system" ? "user" : m.role,
@@ -1151,15 +1151,14 @@ git clone https://github.com/your-username/agent.git
 cd agent
 
 # Install dependencies
-npm install
+yarn install
 
 # Create a feature branch
 git checkout -b feature/your-feature-name
 
 # Make your changes and test
-npm run test
-npm run build
-npm run lint
+yarn build
+yarn lint
 
 # Commit and push
 git commit -m "feat: add your feature description"

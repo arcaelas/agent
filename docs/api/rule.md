@@ -1,29 +1,22 @@
 # Rule
 
-**Rule** defines behavioral guidelines and constraints for AI agents. Rules can be static (always active) or conditional (evaluated at runtime based on agent state).
+**Rule** defines behavioral guidelines and constraints for AI agents. Rules are static text strings injected as system context in each request.
 
 ## Overview
 
 Rules guide agent behavior through:
 
-- **Static Rules**: Always-active behavioral guidelines
-- **Conditional Rules**: Applied based on runtime evaluation
-- **Context-Aware**: Access to agent metadata and message history
-- **Async Support**: Support for async condition evaluation
+- **Static Rules**: Always-active behavioral guidelines injected into the provider context
+- **Simple API**: Single constructor, single string argument
+- **Context-Aware**: Injected by providers as part of the system prompt
 
 ### Key Features
 
-- ✅ Two-tier API (static and conditional)
-- ✅ Runtime condition evaluation
-- ✅ Access to agent context
-- ✅ Sync and async conditions
+- ✅ Simple single-constructor API
+- ✅ Injected into every provider call
 - ✅ Type-safe with full TypeScript support
 
 ## Constructor
-
-Rule has two constructor overloads:
-
-### Static Rule
 
 ```typescript
 new Rule(description: string)
@@ -32,86 +25,19 @@ new Rule(description: string)
 Creates a rule that is always active.
 
 **Parameters:**
-- **description**: Textual description defining the behavior
+- **description**: Textual description defining the behavior. Must be a non-empty string.
 
 **Example:**
 
 ```typescript
 import { Rule } from '@arcaelas/agent';
 
-// Always-active rules
 const politeness = new Rule("Maintain a professional and courteous tone");
 const privacy = new Rule("Never share user personal information");
 const helpfulness = new Rule("Provide comprehensive and useful answers");
 ```
 
-### Conditional Rule
-
-```typescript
-new Rule(description: string, options: RuleOptions)
-```
-
-Creates a rule that applies only when specific conditions are met.
-
-**Parameters:**
-- **description**: Textual description defining the behavior
-- **options**: Configuration object with condition function
-
-#### RuleOptions
-
-```typescript
-interface RuleOptions {
-  /** Function determining when the rule applies */
-  when: (agent: Agent) => boolean | Promise<boolean>;
-}
-```
-
-**Example:**
-
-```typescript
-import { Rule } from '@arcaelas/agent';
-
-// Time-based rule
-const business_hours_rule = new Rule(
-  "Inform about phone support availability",
-  {
-    when: (agent) => {
-      const hour = new Date().getHours();
-      return hour < 9 || hour > 17;  // Outside business hours
-    }
-  }
-);
-
-// Tier-based rule
-const premium_support = new Rule(
-  "Offer priority support and premium benefits",
-  {
-    when: (agent) => {
-      const tier = agent.metadata.get("customer_tier", "");
-      return tier === "gold" || tier === "platinum";
-    }
-  }
-);
-
-// Complex async rule
-const loyalty_discount = new Rule(
-  "Apply 15% loyalty discount",
-  {
-    when: async (agent) => {
-      const purchases = agent.metadata.get("total_purchases", "0");
-      const member_since = agent.metadata.get("member_since", "");
-
-      if (!member_since) return false;
-
-      const years_active =
-        (Date.now() - new Date(member_since).getTime()) /
-        (1000 * 60 * 60 * 24 * 365);
-
-      return parseInt(purchases) > 10 && years_active > 2;
-    }
-  }
-);
-```
+> **Note:** The conditional `new Rule(description, { when })` overload documented in older versions does **not** exist in the current codebase. There is only one constructor signature.
 
 ## Properties
 
@@ -128,32 +54,6 @@ Human-readable description of the behavioral guideline.
 ```typescript
 const rule = new Rule("Always validate user input");
 console.log(rule.description); // "Always validate user input"
-```
-
-### when
-
-```typescript
-readonly when: (agent: Agent) => boolean | Promise<boolean>
-```
-
-Function determining when the rule applies. For static rules, always returns `true`.
-
-**Example:**
-
-```typescript
-// Static rule when function
-const static_rule = new Rule("Be helpful");
-console.log(await static_rule.when(agent)); // true (always)
-
-// Conditional rule when function
-const conditional = new Rule("Escalate to human", {
-  when: (agent) => {
-    const messages = agent.messages;
-    return messages.length > 10;  // Escalate after 10 messages
-  }
-});
-
-console.log(await conditional.when(agent)); // true or false
 ```
 
 ### length
@@ -176,29 +76,21 @@ console.log(rule.length); // 26
 ### toJSON()
 
 ```typescript
-toJSON(): {
-  description: string;
-  when: string;
-}
+toJSON(): { description: string }
 ```
 
-Serializes the rule metadata. The `when` function is represented as the string `"[Function]"`.
-
-**Returns:** Serializable representation
+Serializes the rule to a plain object.
 
 **Example:**
 
 ```typescript
-const rule = new Rule("Be polite", {
-  when: (agent) => agent.metadata.get("user_type") === "customer"
-});
+const rule = new Rule("Be polite");
 
 console.log(JSON.stringify(rule));
-// {"description":"Be polite","when":"[Function]"}
+// {"description":"Be polite"}
 
 const data = rule.toJSON();
 console.log(data.description); // "Be polite"
-console.log(data.when);        // "[Function]"
 ```
 
 ### toString()
@@ -209,127 +101,66 @@ toString(): string
 
 Returns string representation for debugging. Long descriptions are truncated to 50 characters.
 
-**Returns:** String in format `"Rule: description [Function]"`
+**Returns:** String in format `"Rule: description"`
 
 **Example:**
 
 ```typescript
 const rule = new Rule("Always provide detailed explanations");
 console.log(rule.toString());
-// "Rule: Always provide detailed explanations [Function]"
+// "Rule: Always provide detailed explanations"
 
 const long_rule = new Rule("This is a very long rule description that will be truncated when displayed");
 console.log(long_rule.toString());
-// "Rule: This is a very long rule description that wi... [Function]"
+// "Rule: This is a very long rule description that wi..."
 ```
 
 ## Usage Patterns
 
-### Pattern: Time-Based Rules
-
-Apply rules based on time conditions:
+### Pattern: Static Behavioral Guidelines
 
 ```typescript
 const night_mode = new Rule(
-  "Use concise responses and suggest using callback feature",
-  {
-    when: (agent) => {
-      const hour = new Date().getHours();
-      return hour >= 22 || hour < 6;  // Between 10 PM and 6 AM
-    }
-  }
+  "Use concise responses and suggest using the callback feature when replying outside business hours."
 );
 
 const weekend_rule = new Rule(
-  "Inform that technical support is limited on weekends",
-  {
-    when: (agent) => {
-      const day = new Date().getDay();
-      return day === 0 || day === 6;  // Sunday or Saturday
-    }
-  }
+  "Inform the user that technical support is limited on weekends."
 );
 ```
 
-### Pattern: User Tier Rules
+### Pattern: Tier-Based Rules via Metadata (using metadata at provider level)
 
-Customize behavior based on user tier:
-
-```typescript
-const basic_tier_rule = new Rule(
-  "Offer upgrade to premium tier for advanced features",
-  {
-    when: (agent) => {
-      const tier = agent.metadata.get("user_tier", "basic");
-      return tier === "basic" || tier === "free";
-    }
-  }
-);
-
-const enterprise_rule = new Rule(
-  "Provide dedicated account manager contact information",
-  {
-    when: (agent) => {
-      const tier = agent.metadata.get("user_tier", "");
-      return tier === "enterprise";
-    }
-  }
-);
-```
-
-### Pattern: Conversation Context Rules
-
-Rules based on conversation state:
+Since Rule does not support conditional evaluation, apply tier-specific rules by setting them dynamically before the agent call:
 
 ```typescript
-const escalation_rule = new Rule(
-  "Escalate to human supervisor",
-  {
-    when: (agent) => {
-      const messages = agent.messages;
-      const last_message = messages[messages.length - 1]?.content || "";
+const base_rules = [new Rule("Be helpful and concise")];
+const premium_rules = [new Rule("Offer priority support and premium benefits")];
 
-      // Escalate if keywords detected
-      const escalation_keywords = ["supervisor", "manager", "frustrated", "complaint"];
-      return escalation_keywords.some(keyword =>
-        last_message.toLowerCase().includes(keyword)
-      );
-    }
-  }
-);
-
-const long_conversation_rule = new Rule(
-  "Suggest summarizing the conversation and next steps",
-  {
-    when: (agent) => agent.messages.length > 15
-  }
-);
+const tier = agent.metadata.get("user_tier", "basic");
+agent.rules = tier === "premium"
+  ? base_rules.concat(premium_rules)
+  : base_rules;
 ```
 
 ### Pattern: Regional Compliance
 
-Apply regional rules:
-
 ```typescript
 const gdpr_rule = new Rule(
-  "Apply GDPR compliance: inform about data rights and provide data access options",
-  {
-    when: (agent) => {
-      const region = agent.metadata.get("user_region", "");
-      return region === "EU" || region === "UK";
-    }
-  }
+  "Apply GDPR compliance: inform the user about their data rights and provide data access options."
 );
 
 const ccpa_rule = new Rule(
-  "Apply CCPA compliance: provide opt-out options for data collection",
-  {
-    when: (agent) => {
-      const state = agent.metadata.get("user_state", "");
-      return state === "CA";  // California
-    }
-  }
+  "Apply CCPA compliance: provide opt-out options for data collection."
 );
+
+// Set before call based on user region
+const region = agent.metadata.get("user_region", "");
+if (region === "EU" || region === "UK") {
+  agent.rules = agent.rules.concat(gdpr_rule);
+} else if (agent.metadata.get("user_state") === "CA") {
+  agent.rules = agent.rules.concat(ccpa_rule);
+}
 ```
 
 ## Best Practices
@@ -348,66 +179,31 @@ new Rule("Be careful");
 new Rule("Handle properly");
 ```
 
-### 2. Simple Conditions
+### 2. Actionable Descriptions
 
-Keep condition logic straightforward:
+Each rule should be self-contained and actionable by the LLM:
 
 ```typescript
-// ✅ Good: Simple, readable condition
-new Rule("Offer discount", {
-  when: (agent) => {
-    const purchases = parseInt(agent.metadata.get("purchases", "0"));
-    return purchases > 5;
-  }
-});
+// ✅ Good: Specific, actionable
+new Rule("Always ask for order confirmation before processing payment.");
+new Rule("When the user seems frustrated, acknowledge their concern and offer to escalate.");
 
-// ❌ Bad: Overly complex
-new Rule("Complex logic", {
-  when: (agent) => {
-    return (
-      parseInt(agent.metadata.get("a", "0")) > 5 &&
-      (agent.metadata.get("b", "") === "x" || agent.metadata.get("c", "") === "y") &&
-      agent.messages.length > 3
-    );
-  }
-});
+// ❌ Bad: Vague
+new Rule("Be careful");
+new Rule("Handle properly");
 ```
 
-### 3. Efficient Evaluation
+### 3. One Concern Per Rule
 
-Optimize condition functions:
-
-```typescript
-// ✅ Good: Early return for efficiency
-new Rule("Premium features", {
-  when: (agent) => {
-    const tier = agent.metadata.get("tier", "");
-    if (tier === "premium") return true;  // Early return
-
-    const trial = agent.metadata.get("trial", "false");
-    return trial === "true";
-  }
-});
-```
-
-### 4. Error Handling
-
-Handle errors in async conditions:
+Keep rules focused:
 
 ```typescript
-new Rule("External API check", {
-  when: async (agent) => {
-    try {
-      const user_id = agent.metadata.get("user_id", "");
-      const response = await fetch(`/api/check/${user_id}`);
-      const data = await response.json();
-      return data.eligible === true;
-    } catch (error) {
-      console.error("Rule condition failed:", error);
-      return false;  // Fail gracefully
-    }
-  }
-});
+// ✅ Good: One concern per rule
+const privacy = new Rule("Never share user personal information with third parties.");
+const tone = new Rule("Maintain a professional and friendly tone.");
+
+// ❌ Bad: Multiple concerns
+new Rule("Be professional, never share data, and always upsell premium features.");
 ```
 
 ## Type Safety
@@ -415,24 +211,16 @@ new Rule("External API check", {
 Rule is fully typed with TypeScript:
 
 ```typescript
-import { Rule, RuleOptions } from '@arcaelas/agent';
-import type { Agent } from '@arcaelas/agent';
+import { Rule } from '@arcaelas/agent';
 
-// Type-safe condition function
-const condition: RuleOptions['when'] = (agent: Agent) => {
-  const value = agent.metadata.get("key", "");
-  return value === "expected";
-};
+const rule: Rule = new Rule("Always validate user input");
 
-const rule = new Rule("Description", { when: condition });
+// Properties are correctly typed
+const description: string = rule.description;
+const length: number = rule.length;
 
-// Async condition with proper typing
-const async_condition: RuleOptions['when'] = async (agent: Agent) => {
-  const data = await fetchData();
-  return data.valid === true;
-};
-
-const async_rule = new Rule("Async rule", { when: async_condition });
+// toJSON returns { description: string }
+const json: { description: string } = rule.toJSON();
 ```
 
 ## Related

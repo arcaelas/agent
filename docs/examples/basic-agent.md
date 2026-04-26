@@ -23,10 +23,10 @@ const openai = new OpenAI({
 });
 
 // Create provider function
-const openai_provider = async (agent) => {
+const openai_provider = async (ctx) => {
   return await openai.chat.completions.create({
     model: "gpt-4",
-    messages: agent.messages.map(msg => ({
+    messages: ctx.messages.map(msg => ({
       role: msg.role,
       content: msg.content
     }))
@@ -85,10 +85,10 @@ const openai = new OpenAI({
 ### 3. Create Provider Function
 
 ```typescript
-const openai_provider = async (agent) => {
+const openai_provider = async (ctx) => {
   return await openai.chat.completions.create({
     model: "gpt-4",
-    messages: agent.messages.map(msg => ({
+    messages: ctx.messages.map(msg => ({
       role: msg.role,
       content: msg.content
     }))
@@ -183,10 +183,10 @@ console.log(response);
 ### Change Model
 
 ```typescript
-const openai_provider = async (agent) => {
+const openai_provider = async (ctx) => {
   return await openai.chat.completions.create({
     model: "gpt-3.5-turbo",  // Faster, cheaper
-    messages: agent.messages.map(msg => ({
+    messages: ctx.messages.map(msg => ({
       role: msg.role,
       content: msg.content
     }))

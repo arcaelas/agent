@@ -123,7 +123,7 @@ const weather_tool = new Tool("get_weather", {
 - **[Rule](api/rule.md)** - Behavioral guidelines
 - **[Message](api/message.md)** - Conversation messages
 - **[Providers](api/providers.md)** - Provider functions
-- **[Built-in Tools](api/built-in-tools.md)** - RemoteTool & TimeTool
+- **[Built-in Tools](api/built-in-tools.md)** - TimeTool, RemoteTool, AgentTool, AskTool, ChoiceTool, SleepTool
 
 ### 💡 Examples
 

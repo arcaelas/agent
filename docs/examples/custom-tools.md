@@ -454,8 +454,8 @@ const test_tool = new Tool('my_tool', {
   }
 });
 
-// Test tool function directly
-const result = await test_tool.func({ input: 'test value' });
+// Test tool function directly (first arg is the parent agent)
+const result = await test_tool.func(agent, { input: 'test value' });
 console.log(result); // "Processed: test value"
 
 // Verify tool metadata
@@ -475,16 +475,23 @@ HTTP requests with various methods:
 ```typescript
 import { RemoteTool } from '@arcaelas/agent';
 
-const http_tool = new RemoteTool();
-
-// Use in agent
-const agent = new Agent({
-  tools: [http_tool],
-  // ...
+const http_tool = new RemoteTool("fetch_user", {
+  description: "Fetch a user from the API by ID.",
+  parameters: { user_id: "The user ID to look up." },
+  http: {
+    method: "GET",
+    headers: { "Authorization": `Bearer ${process.env.API_KEY}` },
+    url: "https://api.example.com/users",
+  },
 });
 
-// Agent can now make HTTP requests automatically
-await agent.call("Fetch data from https://api.example.com/users");
+const agent = new Agent({
+  description: "Data assistant",
+  tools: [http_tool],
+  providers: [openai_provider],
+});
+
+await agent.call("Look up user 42.");
 ```
 
 ### TimeTool

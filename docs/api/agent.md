@@ -14,14 +14,32 @@ Creates a new Agent instance with the specified configuration.
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `name` | `string` | ✅ Yes | Unique identifier for the agent |
-| `description` | `string` | ✅ Yes | Behavioral personality and purpose |
+| `name` | `string` | No | Deprecated. Not used internally. |
+| `description` | `string` | No | Injected as a `Rule` into the agent's context. Defines the personality and purpose. |
 | `metadata` | `Metadata \| Metadata[]` | No | Initial metadata |
 | `tools` | `Tool \| Tool[]` | No | Available tools |
 | `rules` | `Rule \| Rule[]` | No | Behavioral rules |
 | `messages` | `Message \| Message[]` | No | Conversation history |
 | `contexts` | `Context \| Context[]` | No | Parent contexts for inheritance |
 | `providers` | `Provider[]` | No | AI model provider functions |
+| `branches` | `Array<AgentOptions \| Agent \| string>` | No | Sub-agents that build a "thinking" context before the main turn |
+
+> **Note:** `name` and `description` are declared as `readonly` properties but are never assigned internally — they remain `undefined` at runtime. `description` is converted into a `Rule` that is passed to the internal Context; it does not appear as a property value.
+
+### branches
+
+The `branches` option accepts an array of sub-agents (as `Agent` instances, `AgentOptions` objects, or description strings). Before each `call()` or `stream()` turn, the agent runs the branches sequentially. Each branch inherits the current message thread plus the accumulated thinking from previous branches as a `system` message. The last branch's assistant response is injected as an ephemeral `system` message immediately before the user prompt, then removed after the turn ends (it is never persisted in `messages`).
+
+```typescript
+const agent = new Agent({
+  description: "Final answer agent",
+  branches: [
+    "Think step by step about the problem before answering.",
+    new Agent({ description: "Verify the reasoning above.", providers: [verifier_provider] }),
+  ],
+  providers: [main_provider],
+});
+```
 
 ### Example
 
@@ -29,7 +47,6 @@ Creates a new Agent instance with the specified configuration.
 import { Agent, Tool, Rule } from '@arcaelas/agent';
 
 const agent = new Agent({
-  name: "Support_Agent",
   description: "Professional customer support specialist",
   metadata: new Metadata().set("version", "1.0"),
   tools: [search_tool, ticket_tool],
@@ -40,29 +57,21 @@ const agent = new Agent({
 
 ## Properties
 
-### `name` (readonly)
+### `name` (readonly, deprecated)
 
 ```typescript
-readonly name: string
+readonly name?: string
 ```
 
-Unique identifier for the agent.
+Always `undefined` at runtime. Kept for source-level compatibility only. Do not rely on this value.
+
+### `description` (readonly, deprecated)
 
 ```typescript
-console.log(agent.name);  // "Support_Agent"
+readonly description?: string
 ```
 
-### `description` (readonly)
-
-```typescript
-readonly description: string
-```
-
-Immutable description defining agent's personality and behavior.
-
-```typescript
-console.log(agent.description);  // "Professional customer support specialist"
-```
+Always `undefined` at runtime. The description string from `AgentOptions` is converted to a `Rule` and added to the internal Context; it is not stored as a property. Do not rely on this value.
 
 ### `metadata`
 
@@ -158,7 +167,7 @@ console.log(agent.providers.length);  // Number of providers
 ### `call()`
 
 ```typescript
-async call(prompt: string): Promise<[Message[], boolean]>
+async call(prompt: string, opts?: { signal?: AbortSignal }): Promise<[Message[], boolean]>
 ```
 
 Processes user input with automatic tool execution and provider failover.
@@ -166,6 +175,7 @@ Processes user input with automatic tool execution and provider failover.
 **Parameters:**
 
 - `prompt` - User message to process
+- `opts.signal` - Optional `AbortSignal` to cancel the operation
 
 **Returns:**
 
@@ -188,11 +198,49 @@ if (success) {
 
 **Behavior:**
 
-1. Adds user message to context immediately
-2. Tries providers in order until one succeeds
-3. If response includes tool calls, executes them
-4. Repeats until completion or all providers fail
-5. Returns final state and success indicator
+1. Runs branch pipeline (if `branches` configured), building accumulated thinking
+2. Injects thinking as ephemeral `system` message before the user prompt
+3. Adds user message to context
+4. Tries providers (random selection with failover) until one succeeds
+5. If response includes tool calls, executes them in parallel
+6. Repeats until completion or all providers fail
+7. Removes ephemeral thinking message before returning
+8. Returns final state and success indicator
+
+### `stream()`
+
+```typescript
+async *stream(input: StreamInput, opts?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk>
+```
+
+Streams a conversation turn, yielding message-like chunks as they arrive. Handles the full agentic loop internally.
+
+**Parameters:**
+
+- `input` - A string, `Message` instance, or `{ role, content }` plain object
+- `opts.signal` - Optional `AbortSignal` to cancel the stream
+
+**Iteration limit:** the streaming loop is capped at 10 internal iterations (one per provider re-invocation after a tool round). This prevents runaway tool-call loops. `call()` does not impose this cap.
+
+**Yields:** `StreamChunk` objects — one of:
+
+```typescript
+| { role: "assistant"; content: string }
+| { role: "thinking"; content: string }
+| { role: "tool_call"; name: string; tool_call_id: string; arguments: string }
+| { role: "tool"; name: string; tool_call_id: string; content: string }
+```
+
+**Example:**
+
+```typescript
+for await (const chunk of agent.stream("What time is it in Tokyo?")) {
+  if (chunk.role === "assistant") process.stdout.write(chunk.content);
+  if (chunk.role === "thinking") console.log("[thinking]", chunk.content);
+  if (chunk.role === "tool_call") console.log(`[call] ${chunk.name}(${chunk.arguments})`);
+  if (chunk.role === "tool") console.log(`[result] ${chunk.name}: ${chunk.content}`);
+}
+```
 
 ## Complete Examples
 
@@ -227,7 +275,7 @@ import { Agent, Tool } from '@arcaelas/agent';
 const weather_tool = new Tool("get_weather", {
   description: "Get current weather",
   parameters: { city: "City name" },
-  func: async (params) => `Weather in ${params.city}: Sunny`
+  func: async (agent, params) => `Weather in ${params.city}: Sunny`
 });
 
 const agent = new Agent({
@@ -276,7 +324,7 @@ const agent = new Agent({
     async (ctx) => {
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const response = await anthropic.messages.create({
-        model: "claude-3-sonnet-20240229",
+        model: "claude-sonnet-4-5",
         max_tokens: 4000,
         messages: ctx.messages.map(m => ({
           role: m.role === "system" ? "user" : m.role,
@@ -289,7 +337,7 @@ const agent = new Agent({
         id: response.id,
         object: "chat.completion",
         created: Math.floor(Date.now() / 1000),
-        model: "claude-3-sonnet",
+        model: "claude-sonnet-4-5",
         choices: [{
           index: 0,
           message: { role: "assistant", content: response.content[0].text },
@@ -337,10 +385,33 @@ console.log(sales_agent.metadata.get("department"));    // "Sales"
 ### Provider
 
 ```typescript
-type Provider = (ctx: Context) => ChatCompletionResponse | Promise<ChatCompletionResponse>
+type Provider = {
+  (ctx: Context, opts?: { signal?: AbortSignal }): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true; signal?: AbortSignal }): AsyncIterable<ProviderChunk>;
+};
 ```
 
-Function that receives context and returns a ChatCompletion response.
+Dual-mode provider function. Without `stream: true` returns a `ChatCompletionResponse`. With `stream: true` returns an `AsyncIterable<ProviderChunk>`.
+
+### ProviderChunk
+
+```typescript
+type ProviderChunk =
+  | { type: "text_delta"; content: string }
+  | { type: "thinking_delta"; content: string }
+  | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
+  | { type: "finish"; finish_reason: string };
+```
+
+### StreamChunk
+
+```typescript
+type StreamChunk =
+  | { role: "assistant"; content: string }
+  | { role: "thinking"; content: string }
+  | { role: "tool_call"; name: string; tool_call_id: string; arguments: string }
+  | { role: "tool"; name: string; tool_call_id: string; content: string };
+```
 
 ### ChatCompletionResponse
 

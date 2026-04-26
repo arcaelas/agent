@@ -43,6 +43,8 @@ const agent = new Agent({
 - Provider failover
 - Context inheritance
 - Message history management
+- `branches` pipeline for accumulated pre-turn thinking
+- `stream()` for real-time chunk-based output
 
 **[Learn more →](../api/agent.md)**
 
@@ -136,26 +138,24 @@ const search_tool = new Tool("search_database", {
 
 ### 5. Rules - Behavioral Guidelines
 
-**Rules** define how agents should behave. They can be static or conditional.
+**Rules** define how agents should behave. A `Rule` is always a static text string; there is no conditional `when` variant.
 
-**Static Rule:**
 ```typescript
 const professional_rule = new Rule(
   "Always maintain a professional and courteous tone"
 );
+
+const privacy_rule = new Rule(
+  "Never share personal user information with third parties."
+);
 ```
 
-**Conditional Rule:**
+To apply rules conditionally, set `agent.rules` dynamically before calling `agent.call()`:
+
 ```typescript
-const business_hours_rule = new Rule(
-  "Inform about office hours availability",
-  {
-    when: (agent) => {
-      const hour = new Date().getHours();
-      return hour < 9 || hour > 17;
-    }
-  }
-);
+if (new Date().getHours() < 9 || new Date().getHours() > 17) {
+  agent.rules = agent.rules.concat(new Rule("Inform users that office hours are 9am–5pm."));
+}
 ```
 
 **[Learn more →](../api/rule.md)**

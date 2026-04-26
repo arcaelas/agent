@@ -1,6 +1,6 @@
 # Built-in Tools
 
-@arcaelas/agent includes two production-ready tools: **RemoteTool** for HTTP requests and **TimeTool** for time/date operations.
+@arcaelas/agent includes six production-ready tools: **TimeTool**, **RemoteTool**, **AgentTool**, **AskTool**, **ChoiceTool**, and **SleepTool**.
 
 ## RemoteTool
 
@@ -105,6 +105,8 @@ new TimeTool(options?: { time_zone?: string })
 
 **Options:**
 - **time_zone**: Optional IANA timezone (e.g., "Europe/Madrid", "America/New_York", "Asia/Tokyo")
+
+> The `time_zone` is dual-source: it can be set in the constructor (default for the tool) **and** the LLM may override it per call by passing `{ time_zone }` as the tool argument. Resolution order: runtime arg → constructor option → system timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`).
 
 ### Examples
 
@@ -235,18 +237,9 @@ const multi_service_agent = new Agent({
 ```typescript
 const business_hours_agent = new Agent({
   name: "Business_Hours_Assistant",
-  description: "Provides time-aware responses",
+  description: "Provides time-aware responses. Outside business hours (9am–5pm), inform the user of limited availability.",
   tools: [
     new TimeTool({ time_zone: "America/New_York" })
-  ],
-  rules: [
-    new Rule("Inform about business hours", {
-      when: async (agent) => {
-        // Agent can use time tool to check current time
-        const hour = new Date().getHours();
-        return hour < 9 || hour > 17;
-      }
-    })
   ],
   providers: [openai_provider]
 });
@@ -358,6 +351,149 @@ const time_tool: TimeTool = new TimeTool({
   time_zone: "Europe/Madrid"  // ✅ String type, validated at runtime
 });
 ```
+
+## AgentTool
+
+**AgentTool** wraps a sub-agent as a tool. The parent LLM invokes it like any other tool; the sub-agent processes the prompt with its own provider loop and returns the final assistant text as the tool result.
+
+### Constructor
+
+```typescript
+new AgentTool(options: AgentToolOptions)
+```
+
+### AgentToolOptions
+
+```typescript
+interface AgentToolOptions {
+  name: string;
+  description: string;
+  providers: Provider[];
+  rules?: Rule | Rule[];
+}
+```
+
+Each invocation resets `subAgent.messages = []` before executing, so sub-agent history does not accumulate across parent tool calls.
+
+The single LLM parameter is `prompt: string` — a complete, self-contained instruction.
+
+### Example
+
+```typescript
+import { AgentTool } from '@arcaelas/agent';
+
+const summarize = new AgentTool({
+  name: "summarize",
+  description: "Summarize a long text into a single concise sentence.",
+  providers: [openai_provider],
+  rules: [new Rule("Reply with ONE concise sentence, no preamble.")],
+});
+
+const agent = new Agent({
+  description: "Research assistant",
+  tools: [summarize],
+  providers: [openai_provider],
+});
+
+await agent.call("Summarize the French Revolution for me.");
+```
+
+---
+
+## AskTool
+
+**AskTool** (tool name: `ask_user`) lets the LLM ask the user a free-form question and wait for their reply. The consumer provides the UI logic (CLI prompt, browser modal, async queue, etc.) via a callback.
+
+### Constructor
+
+```typescript
+new AskTool(handler: (question: string) => string | Promise<string>)
+```
+
+The `handler` receives the question string produced by the LLM and must return the user's answer.
+
+> The tool schema uses Zod (`z.object({ question: z.string() })`), so the LLM sees a typed JSON Schema rather than the legacy `Record<string,string>` format used by `TimeTool` and `RemoteTool`.
+
+### Example
+
+```typescript
+import { AskTool } from '@arcaelas/agent';
+import * as readline from 'readline';
+
+const ask = new AskTool(async (question) => {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => rl.question(`${question}\n> `, (ans) => { rl.close(); resolve(ans); }));
+});
+
+const agent = new Agent({
+  description: "Order-taking assistant",
+  tools: [ask],
+  providers: [openai_provider],
+});
+```
+
+---
+
+## ChoiceTool
+
+**ChoiceTool** (tool name: `ask_user_choice`) lets the LLM ask the user to pick one option from a list. The LLM provides both the question and the valid choices; the consumer's callback is responsible for presenting them and validating the selection.
+
+### Constructor
+
+```typescript
+new ChoiceTool(handler: (question: string, choices: string[]) => string | Promise<string>)
+```
+
+> The tool schema uses Zod (`z.object({ question: z.string(), choices: z.array(z.string()) })`), giving the LLM a typed JSON Schema with an array of strings. Validation/retry of the user's selection is the consumer's responsibility inside the handler.
+
+### Example
+
+```typescript
+import { ChoiceTool } from '@arcaelas/agent';
+
+function pick(question: string, choices: string[]): string {
+  const v = prompt(`${question}\n${choices.join(", ")}`) ?? "";
+  return choices.includes(v) ? v : pick(question, choices);
+}
+
+const choice = new ChoiceTool(pick);
+
+const agent = new Agent({
+  description: "Booking assistant",
+  tools: [choice],
+  providers: [openai_provider],
+});
+```
+
+---
+
+## SleepTool
+
+**SleepTool** (tool name: `sleep`) pauses the agent loop for a number of seconds. Useful to avoid rate limits or to space out consecutive operations.
+
+### Constructor
+
+```typescript
+new SleepTool(maxSeconds?: number)  // default: 60
+```
+
+The LLM requests `seconds` (capped to `maxSeconds`). Returns `"Waited N seconds."` after the delay.
+
+> The tool schema uses Zod (`z.object({ seconds: z.number().min(0).max(maxSeconds) })`). The cap is enforced at three layers: the description shown to the LLM, the Zod constraint, and a `clamp` inside `func`.
+
+### Example
+
+```typescript
+import { SleepTool } from '@arcaelas/agent';
+
+const agent = new Agent({
+  description: "Batch processor",
+  tools: [new SleepTool(120)],  // Allow up to 2 minutes
+  providers: [openai_provider],
+});
+```
+
+---
 
 ## Related
 

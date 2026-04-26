@@ -115,17 +115,7 @@ const assistant = new Agent({
           content: m.content
         })),
         // Pass tools to the model
-        tools: ctx.tools?.map(tool => ({
-          type: "function",
-          function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: {
-              type: "object",
-              properties: tool.parameters
-            }
-          }
-        }))
+        tools: ctx.tools?.map(tool => tool.toJSON())
       });
     }
   ]
@@ -186,7 +176,7 @@ const resilient_agent = new Agent({
     async (ctx) => {
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const response = await anthropic.messages.create({
-        model: "claude-3-sonnet-20240229",
+        model: "claude-sonnet-4-5",
         max_tokens: 4000,
         messages: ctx.messages.map(m => ({
           role: m.role === "system" ? "user" : m.role,
@@ -199,7 +189,7 @@ const resilient_agent = new Agent({
         id: response.id,
         object: "chat.completion",
         created: Math.floor(Date.now() / 1000),
-        model: "claude-3-sonnet",
+        model: "claude-sonnet-4-5",
         choices: [{
           index: 0,
           message: {
@@ -311,17 +301,7 @@ const assistant = new Agent({
           role: m.role,
           content: m.content
         })),
-        tools: ctx.tools?.map(tool => ({
-          type: "function",
-          function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: {
-              type: "object",
-              properties: tool.parameters
-            }
-          }
-        }))
+        tools: ctx.tools?.map(tool => tool.toJSON())
       });
     }
   ]
