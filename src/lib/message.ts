@@ -67,23 +67,23 @@ export interface ToolCall {
  */
 export type MessageOptions =
   | {
-      role: "user";
-      content: string;
-    }
+    role: "user";
+    content: string;
+  }
   | {
-      role: "assistant";
-      content: string | null;
-      tool_calls?: ToolCall[];
-    }
+    role: "assistant";
+    content: string | null;
+    tool_calls?: ToolCall[];
+  }
   | {
-      role: "system";
-      content: string;
-    }
+    role: "system";
+    content: string;
+  }
   | {
-      role: "tool";
-      content: string;
-      tool_call_id: string;
-    };
+    role: "tool";
+    content: string;
+    tool_call_id: string;
+  };
 
 /**
  * @description

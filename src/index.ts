@@ -473,6 +473,42 @@ export { default as RemoteTool } from "./func/RemoteTool";
  */
 export { default as TimeTool } from "./func/Time";
 
+/**
+ * @description
+ * AgentTool delega la ejecucion en un sub-agente. El LLM padre la invoca como
+ * cualquier otra tool; el sub-agente procesa el prompt con su propio loop
+ * (providers + rules) y retorna la respuesta como tool result.
+ *
+ * @example
+ * ```typescript
+ * import { AgentTool, Agent, Rule, OpenAI } from '@arcaelas/agent';
+ *
+ * const summarize = new AgentTool({
+ *   name: "summarize",
+ *   description: "Resume un texto largo en una frase.",
+ *   providers: [new OpenAI({ ... })],
+ *   rules: [new Rule("Responde con UNA sola frase concisa.")],
+ * });
+ *
+ * const main = new Agent({
+ *   name: "main",
+ *   description: "Asistente",
+ *   providers: [new OpenAI({ ... })],
+ *   tools: [summarize],
+ * });
+ * ```
+ */
+export { default as AgentTool } from "./func/AgentTool";
+export type { AgentToolOptions } from "./func/AgentTool";
+
+export { default as AskTool } from "./func/AskTool";
+export type { AskHandler } from "./func/AskTool";
+
+export { default as ChoiceTool } from "./func/ChoiceTool";
+export type { ChoiceHandler } from "./func/ChoiceTool";
+
+export { default as SleepTool } from "./func/SleepTool";
+
 /* ================================================================================================
  * EXPORTACIONES DE PROVIDERS
  * ================================================================================================ */

@@ -510,33 +510,43 @@ new Agent(options: AgentOptions)
 ### AgentOptions Interface
 ```typescript
 interface AgentOptions {
-  name: string;                           // Unique agent identifier
-  description: string;                    // Behavioral personality description
+  name?: string;                          // Deprecated — unused internally
+  description?: string;                   // Injected as a Rule into the agent's context
   metadata?: Metadata | Metadata[];      // Initial metadata
   tools?: Tool | Tool[];                  // Available tools
   rules?: Rule | Rule[];                  // Behavioral rules
   messages?: Message | Message[];         // Conversation history
   contexts?: Context | Context[];         // Parent contexts for inheritance
-  providers?: ProviderFunction[];         // AI model provider functions
+  providers?: Provider[];                 // AI model provider functions
+  branches?: Array<AgentOptions | Agent | string>; // Sub-agent pipeline for pre-turn thinking
 }
 ```
 
+> `name` and `description` are `readonly` but never assigned at runtime (always `undefined`). `description` is converted to a `Rule` added to the internal Context.
+
 ### Properties
-- `readonly name: string` - Agent identifier
-- `readonly description: string` - Agent behavior description
+- `readonly name?: string` - Deprecated, always `undefined`
+- `readonly description?: string` - Deprecated, always `undefined`
 - `metadata: Metadata` - Reactive metadata with inheritance
 - `rules: Rule[]` - Combined inherited and local rules
 - `tools: Tool[]` - Deduplicated tools by name (latest wins)
 - `messages: Message[]` - Full conversation history
-- `providers: ProviderFunction[]` - Configured AI provider functions
+- `providers: Provider[]` - Configured AI provider functions
 
 ### Methods
 ```typescript
-async call(prompt: string): Promise<[Message[], boolean]>
+async call(prompt: string, opts?: { signal?: AbortSignal }): Promise<[Message[], boolean]>
 ```
-Processes user input with automatic tool execution and provider failover.
+Processes user input with automatic tool execution and provider failover. Runs branch pipeline first if configured.
 
 **Returns:** Tuple of `[conversation_messages, success_status]`
+
+```typescript
+async *stream(input: StreamInput, opts?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk>
+```
+Streams a conversation turn. Yields `StreamChunk` objects: `{ role: "assistant" | "thinking" | "tool_call" | "tool", ... }`.
+
+**Returns:** `AsyncGenerator<StreamChunk>`
 
 ### Example
 ```typescript
@@ -568,13 +578,15 @@ new Context(options: ContextOptions)
 ### ContextOptions Interface
 ```typescript
 interface ContextOptions {
-  context?: Context | Context[];         // Parent contexts
-  metadata?: Metadata | Metadata[];     // Metadata sources
-  rules?: Rule | Rule[];                 // Behavioral rules
-  tools?: Tool | Tool[];                 // Available tools
-  messages?: Message | Message[];        // Message history
+  context?: Context | Context[];
+  metadata?: Metadata | Metadata[] | Record<string, string>;
+  rules?: Rule | Rule[] | string | string[];
+  tools?: Tool | Tool[];
+  messages?: Message | Message[] | MessageOptions | MessageOptions[];
 }
 ```
+
+Plain objects are auto-converted: `Record<string,string>` → `Metadata`, strings → `Rule`, `MessageOptions` → `Message`. Setters for `rules`, `tools`, and `messages` are idempotent (filter inherited by reference before storing locals).
 
 ### Properties
 - `metadata: Metadata` - Reactive metadata with inheritance
@@ -695,18 +707,19 @@ new Message(options: MessageOptions)
 ### MessageOptions (Union Type)
 ```typescript
 type MessageOptions =
-  | { role: "user"; content: string; }
-  | { role: "assistant"; content: string; }
-  | { role: "system"; content: string; }
-  | { role: "tool"; content: string; tool_call_id: string; };
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "system"; content: string }
+  | { role: "tool"; content: string; tool_call_id: string };
 ```
 
 ### Properties
 - `readonly role: MessageRole` - Message role
-- `readonly content: string` - Message content
-- `readonly tool_call_id?: string` - Tool ID (for tool messages)
+- `readonly content: string | null` - Message content (null allowed for assistant tool-call messages)
+- `readonly tool_call_id?: string` - Tool call ID (for tool messages)
+- `readonly tool_calls?: ToolCall[]` - Tool calls (for assistant messages)
 - `readonly timestamp: Date` - Creation timestamp
-- `readonly length: number` - Content length
+- `readonly length: number` - Content length (0 if null)
 
 ### Example
 ```typescript
@@ -730,53 +743,23 @@ console.log(user_msg.length);    // 23
 <details>
 <summary><strong>📋 Rule Class</strong> - Behavioral constraints and guidelines</summary>
 
-### Constructors
+### Constructor
 ```typescript
-// Always active rule
 new Rule(description: string)
-
-// Conditional rule
-new Rule(description: string, options: RuleOptions)
-```
-
-### RuleOptions Interface
-```typescript
-interface RuleOptions {
-  when: (ctx: Agent) => boolean | Promise<boolean>; // Evaluation function
-}
 ```
 
 ### Properties
-- `readonly description: string` - Rule description
-- `readonly when: Function` - Evaluation function
+- `readonly description: string` - Rule text
+- `readonly length: number` - Character count
 
-### Examples
+### Example
 ```typescript
-// Always active rule
 const professional_rule = new Rule("Maintain professional communication tone");
-
-// Conditional rule
-const business_hours_rule = new Rule(
-  "Outside business hours, inform customer of support availability",
-  {
-    when: (agent) => {
-      const hour = new Date().getHours();
-      return hour < 9 || hour > 17;
-    }
-  }
-);
-
-// Async conditional rule
-const premium_rule = new Rule(
-  "Offer priority support features",
-  {
-    when: async (agent) => {
-      const tier = agent.metadata.get("customer_tier");
-      return tier === "premium" || tier === "enterprise";
-    }
-  }
-);
+const privacy_rule = new Rule("Never share user personal information with third parties.");
 ```
+
+> The conditional `new Rule(description, { when })` overload does **not** exist. Rules are always static. To apply rules conditionally, set `agent.rules` dynamically before calling `agent.call()`.
+
 
 </details>
 
@@ -795,8 +778,8 @@ interface RemoteToolOptions {
   parameters?: Record<string, string>;
   http: {
     method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+    headers: Record<string, string>;  // required
     url: string;
-    headers?: Record<string, string>;
   };
 }
 ```
@@ -884,94 +867,62 @@ await global_agent.call("What time is it in Tokyo and London?");
 </details>
 
 <details>
-<summary><strong>🔧 Provider Function</strong> - AI model integration</summary>
+<summary><strong>🔧 Provider</strong> - AI model integration</summary>
 
 ### Type Definition
 ```typescript
-type ProviderFunction = (
-  ctx: Context
-) => ChatCompletionResponse | Promise<ChatCompletionResponse>;
+type Provider = {
+  (ctx: Context, opts?: { signal?: AbortSignal }): ChatCompletionResponse | Promise<ChatCompletionResponse>;
+  (ctx: Context, opts: { stream: true; signal?: AbortSignal }): AsyncIterable<ProviderChunk>;
+};
 ```
 
-### ChatCompletionResponse Interface
+Dual-mode: non-stream returns `ChatCompletionResponse`; with `stream: true` returns `AsyncIterable<ProviderChunk>`.
+
+### ProviderChunk
 ```typescript
-interface ChatCompletionResponse {
-  id: string;
-  object: "chat.completion";
-  created: number;
-  model: string;
-  choices: CompletionChoice[];
-  usage?: CompletionUsage;
-}
+type ProviderChunk =
+  | { type: "text_delta"; content: string }
+  | { type: "thinking_delta"; content: string }
+  | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
+  | { type: "finish"; finish_reason: string };
+```
 
-interface CompletionChoice {
-  index: number;
-  message: ResponseMessage;
-  finish_reason: "stop" | "length" | "tool_calls" | "content_filter" | null;
-}
-
+### ResponseMessage
+```typescript
 interface ResponseMessage {
   role: "assistant";
   content: string | null;
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: { name: string; arguments: string; };
-  }> | null;
+  tool_calls?: ToolCall[] | null;
+  reasoning_content?: string;  // model thinking, if exposed by the provider
+  refusal?: string | null;
 }
 ```
 
-### Examples
+### Built-in Providers
+
+The library exports callable provider classes: `OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`. All parse model thinking natively.
+
+### Custom Provider Example
 ```typescript
-// OpenAI Provider
-const openai_provider: ProviderFunction = async (ctx) => {
+import OpenAI from 'openai';
+import type { Provider } from '@arcaelas/agent';
+
+const openai_provider: Provider = async (ctx) => {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   return await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: ctx.messages.map(m => ({ role: m.role, content: m.content })),
-    tools: ctx.tools?.map(tool => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: { type: "object", properties: tool.parameters }
-      }
-    }))
-  });
-};
-
-// Anthropic Provider
-const claude_provider: ProviderFunction = async (ctx) => {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const response = await anthropic.messages.create({
-    model: "claude-3-sonnet-20240229",
-    max_tokens: 4000,
+    model: "gpt-4o",
     messages: ctx.messages.map(m => ({
-      role: m.role === "system" ? "user" : m.role,
-      content: m.content
-    }))
+      role: m.role,
+      content: m.content,
+      ...(m.tool_call_id && { tool_call_id: m.tool_call_id }),
+      ...(m.tool_calls && { tool_calls: m.tool_calls }),
+    })),
+    tools: ctx.tools.length ? ctx.tools.map(t => t.toJSON()) : undefined,
   });
-
-  // Convert to OpenAI format
-  return {
-    id: response.id,
-    object: "chat.completion",
-    created: Date.now(),
-    model: "claude-3-sonnet-20240229",
-    choices: [{
-      index: 0,
-      message: {
-        role: "assistant",
-        content: response.content[0].text
-      },
-      finish_reason: "stop"
-    }]
-  };
 };
 
-// Multi-provider agent
 const resilient_agent = new Agent({
-  name: "Resilient_Assistant",
   description: "High-availability assistant with automatic failover",
   providers: [openai_provider, claude_provider]
 });
@@ -1351,38 +1302,15 @@ Help others and improve the ecosystem:
 
 ### Recent Releases
 
-#### v1.0.22 (Current)
-- ✨ **New**: Enhanced provider function typing with better error handling
-- 🔧 **Improved**: Context inheritance performance optimization
-- 📝 **Documentation**: Complete README restructure with examples
-- 🐛 **Fixed**: Tool parameter validation edge cases
-- 🔒 **Security**: Enhanced input sanitization for tools
-
-#### v1.0.14
-- ✨ **New**: TimeTool with comprehensive timezone support
-- 🔧 **Improved**: RemoteTool error handling and retry logic
-- 📝 **Documentation**: Expanded API reference with examples
-- 🐛 **Fixed**: Context metadata inheritance issues
-
-#### v1.0.13
-- 🚀 **New**: Multi-provider failover system
-- ⚡ **Performance**: Optimized memory usage for long conversations
-- 🔒 **Security**: Enhanced tool execution sandboxing
-- 📊 **Monitoring**: Better error reporting and logging
-
-### Upcoming Features (Roadmap)
-
-#### v1.1.0 (Q1 2024)
-- 🔌 **Plugin System**: Extensible plugin architecture
-- 📊 **Analytics**: Built-in usage analytics and monitoring
-- 🎯 **Smart Routing**: Intelligent provider selection based on request type
-- 🛡️ **Security**: Advanced security features and audit logging
-
-#### v1.2.0 (Q2 2024)
-- 🌐 **Multi-Modal**: Support for images, audio, and video
-- 🧠 **Memory**: Long-term memory and knowledge persistence
-- 🔄 **Streaming**: Real-time streaming responses
-- 📱 **Mobile**: React Native and mobile platform support
+#### v1.8.0 (Current)
+- ✨ **New**: `branches` pipeline — sub-agents that build accumulated thinking before the main turn
+- ✨ **New**: `stream()` method on Agent yielding `StreamChunk` with `thinking`, `tool_call`, and `tool` roles
+- ✨ **New**: Built-in tools: `AgentTool`, `AskTool`, `ChoiceTool`, `SleepTool`
+- ✨ **New**: `ProviderChunk { type: "thinking_delta" }` — all built-in providers parse model thinking
+- ✨ **New**: `ResponseMessage.reasoning_content` optional field
+- 🔧 **Improved**: Context constructor accepts plain objects (`Record<string,string>`, strings, `MessageOptions`)
+- 🔧 **Improved**: Context setters for `rules`, `tools`, `messages` are idempotent (filter by reference)
+- 🗑️ **Removed**: `Context.appendMessages()` and `Context.spliceAt()` methods
 
 [View Complete Changelog](https://github.com/arcaelas/agent/blob/main/CHANGELOG.md)
 

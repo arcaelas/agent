@@ -722,7 +722,7 @@ export default class Agent {
     }
 
     const count = this.messages.length;
-    this._context.appendMessages(
+    this.messages = this.messages.concat(
       ...(thinking ? [new Message({ role: "system", content: thinking })] : []),
       new Message({ role: "user", content: prompt })
     );
@@ -730,7 +730,7 @@ export default class Agent {
       const PROVIDERS: Provider[] = [...this._providers];
       const FALLBACK: Provider[] = [];
       while (PROVIDERS.length || FALLBACK.length) {
-        if (opts?.signal?.aborted) return [this._context.messages, false];
+        if (opts?.signal?.aborted) return [this.messages, false];
         let success = true;
         const provider =
           PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
@@ -739,19 +739,19 @@ export default class Agent {
           const response = await provider!(this._context, opts?.signal ? { signal: opts.signal } : undefined);
           for (const choice of response.choices) {
             if (choice.message.content) {
-              this._context.appendMessages(
+              this.messages = this.messages.concat(
                 new Message({ role: "assistant", content: choice.message.content })
               );
             }
             const tool_calls = choice.message.tool_calls ?? [];
             if (tool_calls.length) {
               success = false;
-              this._context.appendMessages(
+              this.messages = this.messages.concat(
                 new Message({ role: "assistant", content: null, tool_calls })
               );
               const results = await Promise.all(
                 tool_calls.map(async (c) => {
-                  const T = this._context.tools.find((t) => t.name === c.function?.name);
+                  const T = this.tools.find((t) => t.name === c.function?.name);
                   if (!T) return new Message({ role: "tool", tool_call_id: c.id, content: "Tool not found" });
                   try {
                     const args = c.function.arguments ? JSON.parse(c.function.arguments) : {};
@@ -767,10 +767,10 @@ export default class Agent {
                   }
                 })
               );
-              this._context.appendMessages(...results);
+              this.messages = this.messages.concat(...results);
             }
           }
-          if (success) return [this._context.messages, true];
+          if (success) return [this.messages, true];
         } catch {
           PROVIDERS.splice(PROVIDERS.indexOf(provider!), 1);
           const idx = FALLBACK.indexOf(provider!);
@@ -778,9 +778,9 @@ export default class Agent {
           else FALLBACK.push(provider!);
         }
       }
-      return [this._context.messages, false];
+      return [this.messages, false];
     } finally {
-      if (thinking) this._context.spliceAt(count, 1);
+      if (thinking) this.messages = this.messages.filter((_, i) => i !== count);
     }
   }
 
@@ -827,7 +827,7 @@ export default class Agent {
         : typeof input === "string"
           ? new Message({ role: "user", content: input })
           : new Message(input as any);
-    this._context.appendMessages(
+    this.messages = this.messages.concat(
       ...(thinking ? [new Message({ role: "system", content: thinking })] : []),
       message
     );
@@ -869,7 +869,7 @@ export default class Agent {
               type: "function" as const,
               function: { name: tc.name, arguments: tc.arguments },
             }));
-            this._context.appendMessages(
+            this.messages = this.messages.concat(
               new Message({
                 role: "assistant",
                 content: text_content || null,
@@ -905,7 +905,7 @@ export default class Agent {
               })
             );
             for (const r of results) {
-              this._context.appendMessages(
+              this.messages = this.messages.concat(
                 new Message({ role: "tool", tool_call_id: r.id, content: r.content })
               );
               yield { role: "tool", name: r.name, tool_call_id: r.id, content: r.content };
@@ -913,7 +913,7 @@ export default class Agent {
             continue;
           }
           if (text_content) {
-            this._context.appendMessages(
+            this.messages = this.messages.concat(
               new Message({ role: "assistant", content: text_content })
             );
           }
@@ -926,7 +926,7 @@ export default class Agent {
         }
       }
     } finally {
-      if (thinking) this._context.spliceAt(count, 1);
+      if (thinking) this.messages = this.messages.filter((_, i) => i !== count);
     }
   }
 }

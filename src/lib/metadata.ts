@@ -184,7 +184,7 @@ export default class Metadata {
   has(key: string): boolean {
     // prettier-ignore
     return this._data[key] === null ? false : (
-      this._data[key] === undefined ?(
+      this._data[key] === undefined ? (
         this._broker.some((node) => node.has(key))
       ) : true
     )

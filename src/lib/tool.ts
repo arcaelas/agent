@@ -32,8 +32,8 @@
  * ```
  */
 
-import Agent from "./agent";
 import { z } from "zod";
+import Agent from "./agent";
 
 /**
  * @description
@@ -192,10 +192,10 @@ export default class Tool<T = any> {
     const options = {
       ...(typeof handler_or_options === "function"
         ? {
-            description: name,
-            parameters: { input: "<tool-input>" },
-            func: handler_or_options,
-          }
+          description: name,
+          parameters: { input: "<tool-input>" },
+          func: handler_or_options,
+        }
         : handler_or_options),
     };
     this.description = options.description || this.name;
