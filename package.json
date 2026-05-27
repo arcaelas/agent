@@ -36,10 +36,11 @@
   "scripts": {
     "build": "tsc && tsc-alias",
     "docs": "mkdocs gh-deploy --force",
-    "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "prepublishOnly": "yarn build && npm version minor",
-    "postpublish": "rm -rf build/"
+    "postpublish": "rm -rf build/",
+    "lint": "eslint src/ --fix",
+    "release": "npm version minor && yarn build && npm publish --access public"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.71",
