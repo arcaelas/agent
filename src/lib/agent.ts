@@ -832,10 +832,9 @@ export default class Agent {
       message
     );
     try {
-      let iteration = 0;
       const FALLBACK: Provider[] = [];
       const PROVIDERS: Provider[] = this._providers.concat()
-      while ((PROVIDERS.length || FALLBACK.length) && iteration++ < 10) {
+      while ((PROVIDERS.length || FALLBACK.length)) {
         if (opts?.signal?.aborted) return;
         const provider =
           PROVIDERS[Math.floor(Math.random() * PROVIDERS.length)] ??
