@@ -541,6 +541,8 @@ export { default as SleepTool } from "./func/SleepTool";
  */
 export { default as OpenAI } from "./provider/openai";
 export type { OpenAIProviderOptions } from "./provider/openai";
+export { default as Ollama } from "./provider/ollama";
+export type { OllamaProviderOptions } from "./provider/ollama";
 
 /**
  * @description

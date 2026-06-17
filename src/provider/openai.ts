@@ -1,13 +1,14 @@
 /**
  * @fileoverview
- * Dual-mode OpenAI provider for AI agents.
- * Supports both non-streaming (ChatCompletionResponse) and streaming (ProviderChunk) modes.
+ * Dual-mode OpenAI-compatible provider for AI agents.
+ * Base class for all OpenAI-compatible APIs (OpenAI, Groq, DeepSeek, Ollama, etc.).
+ * Supports non-streaming (ChatCompletionResponse) and streaming (ProviderChunk) modes.
  *
- * Provider dual-mode de OpenAI para agentes de IA.
+ * Clase base para proveedores compatibles con OpenAI (OpenAI, Groq, DeepSeek, Ollama, etc.).
  * Soporta modo sin streaming (ChatCompletionResponse) y streaming (ProviderChunk).
  *
  * @author Arcaelas Insiders
- * @version 2.0.0
+ * @version 3.0.0
  * @since 1.0.0
  */
 
@@ -16,67 +17,94 @@ import type Context from "~/lib/context";
 import { parse_sse } from "~/lib/sse";
 
 /**
- * @description
- * Configuration options for the OpenAI provider.
- * Opciones de configuración para el provider de OpenAI.
+ * Configuration options for the OpenAI provider (and any OpenAI-compatible API).
+ * Opciones de configuración para el provider de OpenAI (y cualquier API compatible).
  */
 export interface OpenAIProviderOptions {
   /**
-   * @description
-   * OpenAI API key for authentication.
+   * API key for authentication.
+   * Clave de API para autenticación.
    */
   api_key: string;
 
   /**
-   * @description
-   * Base URL for the OpenAI API.
+   * Base URL for the API endpoint.
    * Default: "https://api.openai.com/v1"
+   *
+   * URL base del endpoint de la API.
+   * Por defecto: "https://api.openai.com/v1"
    */
   base_url?: string;
 
   /**
-   * @description
-   * OpenAI model to use.
+   * Model identifier to use for completions.
+   * Identificador del modelo a usar para completions.
    */
   model: string;
 
   /**
-   * @description
-   * Temperature for response randomness control. Range: 0.0 to 2.0.
+   * Sampling temperature. Range: 0.0–2.0. Higher = more random.
+   * Temperatura de muestreo. Rango: 0.0–2.0. Mayor = más aleatorio.
    */
   temperature?: number;
 
   /**
-   * @description
-   * Maximum number of tokens to generate.
+   * Maximum tokens to generate in the response.
+   * Máximo de tokens a generar en la respuesta.
    */
   max_tokens?: number;
 
   /**
-   * @description
-   * Additional HTTP headers to include in requests.
+   * Additional HTTP headers merged into every request.
+   * Headers HTTP adicionales incluidos en cada petición.
    */
   headers?: Record<string, string>;
+
+  /**
+   * Extra fields merged into the request body as-is.
+   * Useful for provider-specific parameters not covered by this interface
+   * (e.g. Ollama's `think`, `num_ctx`; OpenAI's `reasoning_effort`; etc.).
+   *
+   * Campos adicionales fusionados en el body de la petición sin modificación.
+   * Útil para parámetros específicos del proveedor no cubiertos por esta interfaz
+   * (ej. `think` y `num_ctx` de Ollama, `reasoning_effort` de OpenAI, etc.).
+   */
+  extra_body?: Record<string, unknown>;
 }
 
 /**
- * @description
- * Dual-mode OpenAI provider. Returns a function that supports both
- * non-streaming and streaming modes via the optional second argument.
+ * Dual-mode OpenAI-compatible provider.
  *
- * Provider dual-mode de OpenAI. Retorna una función que soporta
- * modo sin streaming y streaming via el segundo argumento opcional.
+ * Acts as the base class for all OpenAI-compatible providers. Subclasses
+ * only need to set a different `base_url` default and can add their own
+ * provider-specific options via `extra_body`.
+ *
+ * Provider dual-mode compatible con OpenAI.
+ *
+ * Actúa como clase base para todos los proveedores compatibles con OpenAI.
+ * Las subclases solo necesitan cambiar el `base_url` por defecto y pueden
+ * agregar parámetros específicos vía `extra_body`.
  *
  * @example
  * ```typescript
- * const openai = new OpenAI({ api_key: "sk-...", model: "gpt-4" });
+ * // OpenAI
+ * const openai = new OpenAI({ api_key: "sk-...", model: "gpt-4o" });
  *
- * // Non-streaming (call)
+ * // Ollama (OpenAI-compatible, think mode)
+ * const ollama = new OpenAI({
+ *   api_key: "ollama",
+ *   base_url: "http://localhost:11434/v1",
+ *   model: "qwen3:8b",
+ *   extra_body: { think: false },
+ * });
+ *
+ * // Non-streaming
  * const response = await openai(ctx);
  *
- * // Streaming (stream)
+ * // Streaming
  * for await (const chunk of openai(ctx, { stream: true })) {
- *   // chunk: ProviderChunk
+ *   if (chunk.type === "text_delta") process.stdout.write(chunk.content);
+ *   if (chunk.type === "thinking_delta") console.log("[think]", chunk.content);
  * }
  * ```
  */
@@ -84,90 +112,52 @@ export default interface OpenAI extends Provider { }
 export default class OpenAI extends Function {
   constructor(options: OpenAIProviderOptions) {
     super();
-
-    const base_url = options.base_url ?? "https://api.openai.com/v1";
-
-    const build_payload = (ctx: Context) => {
-      const rules_messages = ctx.rules.length
-        ? [{ role: "system" as const, content: ctx.rules.map((r) => r.description).join("\n\n") }]
-        : [];
-
-      const context_messages = ctx.messages.map((m) => {
-        const json = m.toJSON();
-        const { timestamp, ...message } = json;
-        return message;
-      });
-
-      const messages = [...rules_messages, ...context_messages];
-      const tools = ctx.tools.length ? ctx.tools.map((t) => t.toJSON()) : undefined;
-
-      return { messages, tools };
-    };
-
-    const build_headers = () => ({
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${options.api_key}`,
-      ...(options.headers ?? {}),
-    });
-
-    return ((ctx: Context, opts?: { stream?: true; signal?: AbortSignal }): any => {
-      const { messages, tools } = build_payload(ctx);
-      const signal = opts?.signal;
-
-      if (!opts?.stream) {
-        return (async (): Promise<ChatCompletionResponse> => {
-          const response = await fetch(`${base_url}/chat/completions`, {
-            method: "POST",
-            headers: build_headers(),
-            signal,
-            body: JSON.stringify({
-              model: options.model,
-              messages,
-              tools,
-              temperature: options.temperature ?? 1.0,
-              max_tokens: options.max_tokens,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-          }
-
-          return await response.json();
-        })();
-      }
-
-      return (async function* (): AsyncGenerator<ProviderChunk, void, unknown> {
-        const response = await fetch(`${base_url}/chat/completions`, {
-          method: "POST",
-          headers: build_headers(),
-          signal,
-          body: JSON.stringify({
-            model: options.model,
-            messages,
-            tools,
-            temperature: options.temperature ?? 1.0,
-            max_tokens: options.max_tokens,
-            stream: true,
+    options.base_url ||= "https://api.openai.com/v1";
+    return (async (ctx: Context, opts?: { stream?: boolean, signal?: AbortSignal }) => {
+      const body = {
+        model: options.model,
+        ...options.extra_body,
+        ...(opts?.stream && { stream: true }),
+        ...(options.max_tokens && { max_tokens: options.max_tokens }),
+        ...(options.temperature && { temperature: options.temperature }),
+        tools: ctx.tools.length ? ctx.tools.map((t) => t.toJSON()) : undefined,
+        messages: [
+          ...(ctx.rules.length
+            ? [{ role: "system" as const, content: ctx.rules.map((r) => r.description).join("\n\n") }]
+            : []),
+          ...ctx.messages.map((m) => {
+            const { timestamp, ...msg } = m.toJSON();
+            return {
+              role: msg.role,
+              content: msg.content ?? null,
+              ...(msg.tool_calls?.length && { tool_calls: msg.tool_calls }),
+              ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+            };
           }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-        }
-
+        ],
+      };
+      const response = await fetch(`${options.base_url}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${options.api_key}`,
+          ...options.headers,
+        },
+        signal: opts?.signal,
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      }
+      if (!opts?.stream) {
+        return response.json() as Promise<ChatCompletionResponse>;
+      }
+      return (async function* (): AsyncGenerator<ProviderChunk, void, unknown> {
         for await (const chunk of parse_sse(response)) {
           const delta = chunk.choices?.[0]?.delta;
           if (!delta) continue;
-
-          if (delta.reasoning_content) {
-            yield { type: "thinking_delta", content: delta.reasoning_content };
-          }
-
-          if (delta.content) {
-            yield { type: "text_delta", content: delta.content };
-          }
-
+          if (delta.reasoning_content) yield { type: "thinking_delta", content: delta.reasoning_content };
+          if (delta.content) yield { type: "text_delta", content: delta.content };
           if (delta.tool_calls) {
             for (const tc of delta.tool_calls) {
               yield {
@@ -179,7 +169,6 @@ export default class OpenAI extends Function {
               };
             }
           }
-
           if (chunk.choices?.[0]?.finish_reason) {
             yield { type: "finish", finish_reason: chunk.choices[0].finish_reason };
           }

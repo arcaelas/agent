@@ -1,192 +1,53 @@
 /**
  * @fileoverview
- * Dual-mode DeepSeek provider for AI agents.
- * Supports both non-streaming (ChatCompletionResponse) and streaming (ProviderChunk) modes.
- * DeepSeek is OpenAI-compatible and specializes in reasoning and code generation.
+ * DeepSeek provider for AI agents. Extends OpenAI with DeepSeek's base URL.
+ * DeepSeek specializes in reasoning and code generation via an OpenAI-compatible API.
  *
- * Provider dual-mode de DeepSeek para agentes de IA.
- * Soporta modo sin streaming (ChatCompletionResponse) y streaming (ProviderChunk).
- * DeepSeek es compatible con OpenAI y especializado en razonamiento y generación de código.
+ * Provider de DeepSeek para agentes de IA. Extiende OpenAI con la URL base de DeepSeek.
+ * DeepSeek está especializado en razonamiento y generación de código vía API compatible con OpenAI.
  *
  * @author Arcaelas Insiders
- * @version 2.0.0
+ * @version 3.0.0
  * @since 1.0.0
  */
 
-import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/lib/agent";
-import type Context from "~/lib/context";
-import { parse_sse } from "~/lib/sse";
+import OpenAI, { type OpenAIProviderOptions } from "./openai";
 
 /**
- * @description
  * Configuration options for the DeepSeek provider.
  * Opciones de configuración para el provider de DeepSeek.
  */
-export interface DeepSeekProviderOptions {
+export type DeepSeekProviderOptions = Omit<OpenAIProviderOptions, "base_url"> & {
   /**
-   * @description
-   * DeepSeek API key for authentication.
-   */
-  api_key: string;
-
-  /**
-   * @description
    * Base URL for the DeepSeek API.
    * Default: "https://api.deepseek.com/v1"
+   *
+   * URL base de la API de DeepSeek.
+   * Por defecto: "https://api.deepseek.com/v1"
    */
   base_url?: string;
-
-  /**
-   * @description
-   * DeepSeek model to use.
-   */
-  model: string;
-
-  /**
-   * @description
-   * Temperature for response randomness control. Range: 0.0 to 2.0.
-   */
-  temperature?: number;
-
-  /**
-   * @description
-   * Maximum number of tokens to generate.
-   */
-  max_tokens?: number;
-
-  /**
-   * @description
-   * Additional HTTP headers to include in requests.
-   */
-  headers?: Record<string, string>;
-}
+};
 
 /**
- * @description
- * Dual-mode DeepSeek provider. Returns a function that supports both
- * non-streaming and streaming modes via the optional second argument.
+ * DeepSeek provider. Identical behavior to OpenAI but defaults to DeepSeek's endpoint.
+ * Thinking tokens (reasoning_content) are forwarded as `thinking_delta` chunks in stream mode.
  *
- * Provider dual-mode de DeepSeek. Retorna una función que soporta
- * modo sin streaming y streaming via el segundo argumento opcional.
+ * Provider de DeepSeek. Comportamiento idéntico a OpenAI pero apunta al endpoint de DeepSeek.
+ * Los tokens de razonamiento (reasoning_content) se emiten como chunks `thinking_delta` en streaming.
  *
  * @example
  * ```typescript
- * const deepseek = new DeepSeek({ api_key: "sk-...", model: "deepseek-chat" });
- *
- * // Non-streaming (call)
- * const response = await deepseek(ctx);
- *
- * // Streaming (stream)
- * for await (const chunk of deepseek(ctx, { stream: true })) {
- *   // chunk: ProviderChunk
+ * const deepseek = new DeepSeek({ api_key: "sk-...", model: "deepseek-reasoner" });
+ * for await (const chunk of new Agent({ providers: [deepseek] }).stream("Explica esto")) {
+ *   if (chunk.role === "thinking") console.log("[think]", chunk.content);
+ *   if (chunk.role === "assistant") process.stdout.write(chunk.content);
  * }
  * ```
  */
-export default interface DeepSeek extends Provider { }
-export default class DeepSeek extends Function {
+export default class DeepSeek extends OpenAI {
   constructor(options: DeepSeekProviderOptions) {
-    super();
-
-    const base_url = options.base_url ?? "https://api.deepseek.com/v1";
-
-    const build_payload = (ctx: Context) => {
-      const rules_messages = ctx.rules.length
-        ? [{ role: "system" as const, content: ctx.rules.map((r) => r.description).join("\n\n") }]
-        : [];
-
-      const context_messages = ctx.messages.map((m) => {
-        const json = m.toJSON();
-        const { timestamp, ...message } = json;
-        return message;
-      });
-
-      const messages = [...rules_messages, ...context_messages];
-      const tools = ctx.tools.length ? ctx.tools.map((t) => t.toJSON()) : undefined;
-
-      return { messages, tools };
-    };
-
-    const build_headers = () => ({
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${options.api_key}`,
-      ...(options.headers ?? {}),
-    });
-
-    return ((ctx: Context, opts?: { stream?: true; signal?: AbortSignal }): any => {
-      const { messages, tools } = build_payload(ctx);
-      const signal = opts?.signal;
-
-      if (!opts?.stream) {
-        return (async (): Promise<ChatCompletionResponse> => {
-          const response = await fetch(`${base_url}/chat/completions`, {
-            method: "POST",
-            headers: build_headers(),
-            signal,
-            body: JSON.stringify({
-              model: options.model,
-              messages,
-              tools,
-              temperature: options.temperature ?? 1.0,
-              max_tokens: options.max_tokens,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
-          }
-
-          return await response.json();
-        })();
-      }
-
-      return (async function* (): AsyncGenerator<ProviderChunk, void, unknown> {
-        const response = await fetch(`${base_url}/chat/completions`, {
-          method: "POST",
-          headers: build_headers(),
-          signal,
-          body: JSON.stringify({
-            model: options.model,
-            messages,
-            tools,
-            temperature: options.temperature ?? 1.0,
-            max_tokens: options.max_tokens,
-            stream: true,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
-        }
-
-        for await (const chunk of parse_sse(response)) {
-          const delta = chunk.choices?.[0]?.delta;
-          if (!delta) continue;
-
-          if (delta.reasoning_content) {
-            yield { type: "thinking_delta", content: delta.reasoning_content };
-          }
-
-          if (delta.content) {
-            yield { type: "text_delta", content: delta.content };
-          }
-
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              yield {
-                type: "tool_call_delta",
-                index: tc.index,
-                id: tc.id,
-                name: tc.function?.name,
-                arguments_delta: tc.function?.arguments,
-              };
-            }
-          }
-
-          if (chunk.choices?.[0]?.finish_reason) {
-            yield { type: "finish", finish_reason: chunk.choices[0].finish_reason };
-          }
-        }
-      })();
-    }) as any;
+    super({ base_url: "https://api.deepseek.com/v1", ...options });
   }
 }
+
+
