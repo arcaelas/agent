@@ -105,9 +105,21 @@ export interface ResponseMessage {
   /**
    * @description
    * Texto de razonamiento (thinking) del modelo, si lo expone el provider.
-   * Solo informativo; la libreria no lo persiste en el thread ni lo reenvia.
+   * Cuando está presente, el Agent persiste el mensaje como `Think` para
+   * preservar el razonamiento entre turnos.
+   * Reasoning (thinking) text exposed by the provider. When present, the
+   * Agent persists the message as a `Think` to preserve reasoning across turns.
    */
   reasoning_content?: string;
+
+  /**
+   * @description
+   * Firma criptográfica del bloque de razonamiento (específico de Anthropic).
+   * Se reinyecta en turnos posteriores para que la API acepte el thinking.
+   * Cryptographic signature of the reasoning block (Anthropic-specific).
+   * Reinjected in later turns so the API accepts the thinking block.
+   */
+  reasoning_signature?: string;
 
   /**
    * @description
@@ -233,6 +245,7 @@ export interface ChatCompletionResponse {
 export type ProviderChunk =
   | { type: "text_delta"; content: string }
   | { type: "thinking_delta"; content: string }
+  | { type: "signature_delta"; content: string }
   | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
   | { type: "finish"; finish_reason: string };
 
@@ -261,6 +274,35 @@ export type StreamChunk =
  * o un objeto plano con role y content.
  */
 export type StreamInput = string | Message | { role: "user" | "assistant"; content: string };
+
+/**
+ * Serializa incondicionalmente el valor retornado por un tool al string que se
+ * persiste como contenido del mensaje `tool`. Es un guard preventivo: garantiza
+ * que el modelo siempre reciba un string serializado. Si un tool ya devuelve un
+ * string serializado por sí mismo, esa es decisión del tool, no del orquestador.
+ * Unconditionally serializes a tool's return value into the string persisted as
+ * the `tool` message content. A preventive guard: guarantees the model always
+ * receives a serialized string. If a tool already returns a self-serialized
+ * string, that is the tool's decision, not the orchestrator's.
+ *
+ * @param result - Valor devuelto por el tool / Value returned by the tool
+ */
+const stringify_result = (result: unknown): string => {
+  if (result === undefined) {
+    return "undefined";
+  }
+  if (typeof result === "function") {
+    return "[Function]";
+  }
+  if (typeof result === "bigint") {
+    return result.toString();
+  }
+  try {
+    return JSON.stringify(result);
+  } catch {
+    return String(result);
+  }
+};
 
 /**
  * @description
@@ -718,7 +760,10 @@ export default class Agent {
         thinking ? new Message({ role: "system", content: thinking }) : []
       );
       const [m, s] = await branch.call(prompt, opts);
-      if (s) thinking = m.filter((x) => x.role === "assistant" && x.content).at(-1)?.content ?? "";
+      if (s) {
+        const last = m.filter((x) => x.role === "assistant" && x.content).at(-1)?.content;
+        thinking = typeof last === "string" ? last : "";
+      }
     }
 
     const count = this.messages.length;
@@ -738,16 +783,18 @@ export default class Agent {
         try {
           const response = await provider!(this._context, opts?.signal ? { signal: opts.signal } : undefined);
           for (const choice of response.choices) {
-            if (choice.message.content) {
+            const reasoning = choice.message.reasoning_content;
+            const signature = choice.message.reasoning_signature ?? "";
+            if (choice.message.content && !choice.message.tool_calls?.length) {
               this.messages = this.messages.concat(
-                new Message({ role: "assistant", content: choice.message.content })
+                new Message({ role: "assistant", content: choice.message.content, ...(reasoning && { thinking: reasoning, thinking_signature: signature }) })
               );
             }
             const tool_calls = choice.message.tool_calls ?? [];
             if (tool_calls.length) {
               success = false;
               this.messages = this.messages.concat(
-                new Message({ role: "assistant", content: null, tool_calls })
+                new Message({ role: "assistant", content: choice.message.content ?? null, tool_calls, ...(reasoning && { thinking: reasoning, thinking_signature: signature }) })
               );
               const results = await Promise.all(
                 tool_calls.map(async (c) => {
@@ -756,12 +803,7 @@ export default class Agent {
                   try {
                     const args = c.function.arguments ? JSON.parse(c.function.arguments) : {};
                     const r = await T.func(this, args);
-                    let content: string;
-                    if (r === undefined) content = "undefined";
-                    else if (typeof r === "function") content = "[Function]";
-                    else if (typeof r === "bigint") content = (r as bigint).toString();
-                    else { try { content = JSON.stringify(r); } catch { content = String(r); } }
-                    return new Message({ role: "tool", tool_call_id: c.id, content });
+                    return new Message({ role: "tool", tool_call_id: c.id, content: stringify_result(r) });
                   } catch (e: any) {
                     return new Message({ role: "tool", tool_call_id: c.id, content: e?.message ?? String(e) });
                   }
@@ -806,19 +848,18 @@ export default class Agent {
    * ```
    */
   async *stream(input: StreamInput, opts?: { signal?: AbortSignal }): AsyncGenerator<StreamChunk, void, unknown> {
-    const prompt =
-      typeof input === "string"
-        ? input
-        : input instanceof Message
-          ? input.content ?? ""
-          : input.content ?? "";
+    const raw_content = typeof input === "string" ? input : input.content;
+    const prompt = typeof raw_content === "string" ? raw_content : "";
     let thinking = "";
     for (const branch of this._branches) {
       branch.messages = this.messages.concat(
         thinking ? new Message({ role: "system", content: thinking }) : []
       );
       const [m, s] = await branch.call(prompt, opts);
-      if (s) thinking = m.filter((x) => x.role === "assistant" && x.content).at(-1)?.content ?? "";
+      if (s) {
+        const last = m.filter((x) => x.role === "assistant" && x.content).at(-1)?.content;
+        thinking = typeof last === "string" ? last : "";
+      }
     }
     const count = this.messages.length;
     const message =
@@ -841,13 +882,18 @@ export default class Agent {
           FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
         try {
           let text_content = "";
+          let thinking_content = "";
+          let signature_content = "";
           let has_tool_calls = false;
           const chunks = provider!(this._context, { stream: true, signal: opts?.signal });
           const tool_calls_acc: Map<number, { id: string; name: string; arguments: string }> = new Map();
           for await (const chunk of chunks) {
             if (chunk.type === "thinking_delta") {
+              thinking_content += chunk.content;
               yield { role: "thinking", content: chunk.content };
-              continue;
+            }
+            if (chunk.type === "signature_delta") {
+              signature_content += chunk.content;
             }
             if (chunk.type === "text_delta") {
               text_content += chunk.content;
@@ -869,11 +915,7 @@ export default class Agent {
               function: { name: tc.name, arguments: tc.arguments },
             }));
             this.messages = this.messages.concat(
-              new Message({
-                role: "assistant",
-                content: text_content || null,
-                tool_calls: tool_calls_arr,
-              })
+              new Message({ role: "assistant", content: text_content || null, tool_calls: tool_calls_arr, ...(thinking_content && { thinking: thinking_content, thinking_signature: signature_content }) })
             );
             for (const tc of tool_calls_arr) {
               yield {
@@ -890,14 +932,7 @@ export default class Agent {
                 try {
                   const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
                   const result = await tool.func(this, args);
-                  let content: string;
-                  if (result === undefined) content = "undefined";
-                  else if (typeof result === "function") content = "[Function]";
-                  else if (typeof result === "bigint") content = (result as bigint).toString();
-                  else {
-                    try { content = JSON.stringify(result); } catch { content = String(result); }
-                  }
-                  return { id: tc.id, name: tc.function.name, content };
+                  return { id: tc.id, name: tc.function.name, content: stringify_result(result) };
                 } catch (error: any) {
                   return { id: tc.id, name: tc.function.name, content: error?.message ?? String(error) };
                 }
@@ -913,7 +948,7 @@ export default class Agent {
           }
           if (text_content) {
             this.messages = this.messages.concat(
-              new Message({ role: "assistant", content: text_content })
+              new Message({ role: "assistant", content: text_content, ...(thinking_content && { thinking: thinking_content, thinking_signature: signature_content }) })
             );
           }
           return;

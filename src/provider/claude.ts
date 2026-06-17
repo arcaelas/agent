@@ -1,312 +1,287 @@
 /**
  * @fileoverview
  * Dual-mode Claude (Anthropic) provider for AI agents.
- * Supports both non-streaming (ChatCompletionResponse) and streaming (ProviderChunk) modes.
- * Transforms messages and tools between OpenAI and Anthropic formats automatically.
+ * Supports non-streaming (ChatCompletionResponse) and streaming (ProviderChunk) modes.
+ * Transforms messages and tools from OpenAI format to Anthropic format automatically.
  *
  * Provider dual-mode de Claude (Anthropic) para agentes de IA.
  * Soporta modo sin streaming (ChatCompletionResponse) y streaming (ProviderChunk).
- * Transforma mensajes y tools entre formatos OpenAI y Anthropic automáticamente.
+ * Transforma mensajes y tools del formato OpenAI al formato Anthropic automáticamente.
  *
  * @author Arcaelas Insiders
- * @version 2.0.0
+ * @version 3.0.0
  * @since 1.0.0
  */
 
 import type { ChatCompletionResponse, Provider, ProviderChunk } from "~/lib/agent";
 import type Context from "~/lib/context";
+import type { ContentBlock, MessageContent } from "~/lib/message";
 import { parse_anthropic_sse } from "~/lib/sse";
 
 /**
- * @description
  * Configuration options for the Claude provider.
  * Opciones de configuración para el provider de Claude.
  */
 export interface ClaudeProviderOptions {
   /**
-   * @description
-   * Anthropic API key for authentication.
-   */
-  api_key: string;
-
-  /**
-   * @description
-   * Base URL for the Anthropic API.
-   * Default: "https://api.anthropic.com/v1"
+   * Full URL of the messages endpoint. Default points to Anthropic's official API,
+   * but can target any Anthropic-compatible endpoint (proxy, gateway, `?beta=true`, etc.).
+   *
+   * URL completa del endpoint de mensajes. Por defecto apunta a la API oficial de Anthropic,
+   * pero puede apuntar a cualquier endpoint compatible (proxy, gateway, `?beta=true`, etc.).
+   *
+   * Default: "https://api.anthropic.com/v1/messages"
    */
   base_url?: string;
 
   /**
-   * @description
+   * Bearer token for authentication. When present, sent as `Authorization: Bearer <api_key>`.
+   * Optional: omit it when authentication is fully handled via `headers`
+   * (e.g. OAuth flows that set their own Authorization header).
+   *
+   * Token Bearer para autenticación. Cuando está presente, se envía como `Authorization: Bearer <api_key>`.
+   * Opcional: omítelo cuando la autenticación se maneja por completo vía `headers`
+   * (ej. flujos OAuth que setean su propio header Authorization).
+   */
+  api_key?: string;
+
+  /**
    * Claude model to use.
+   * Modelo de Claude a usar.
    */
   model: string;
 
   /**
-   * @description
-   * Temperature for response randomness control. Range: 0.0 to 1.0.
+   * Sampling temperature. Range: 0.0–1.0.
+   * Temperatura de muestreo. Rango: 0.0–1.0.
    */
   temperature?: number;
 
   /**
-   * @description
-   * Maximum number of tokens to generate.
+   * Maximum tokens to generate. Required by Anthropic API — defaults to 1024.
+   * Máximo de tokens a generar. Requerido por la API de Anthropic — por defecto 1024.
    */
   max_tokens?: number;
 
   /**
-   * @description
-   * Additional HTTP headers to include in requests.
+   * Additional HTTP headers merged into (and overriding) the defaults.
+   * Use this for OAuth betas (`anthropic-beta`), custom Authorization, gateway keys, etc.
+   *
+   * Headers HTTP adicionales fusionados sobre (y sobreescribiendo) los defaults.
+   * Útil para betas de OAuth (`anthropic-beta`), Authorization custom, claves de gateway, etc.
    */
   headers?: Record<string, string>;
+
+  /**
+   * Extra fields merged into the request body as-is.
+   * For provider-specific parameters not covered here (extended thinking, system arrays,
+   * `metadata`, `top_p`, server tools, etc.).
+   *
+   * Campos adicionales fusionados en el body de la petición sin modificación.
+   * Para parámetros específicos no cubiertos aquí (thinking extendido, system como array,
+   * `metadata`, `top_p`, server tools, etc.).
+   *
+   * @example { thinking: { type: "enabled", budget_tokens: 8000 } }
+   */
+  body?: Record<string, unknown>;
 }
 
 /**
- * @description
- * Dual-mode Claude provider. Returns a function that supports both
- * non-streaming and streaming modes via the optional second argument.
- * Automatically transforms between OpenAI and Anthropic message formats.
+ * Maps Anthropic stop reasons to OpenAI finish reasons.
+ * Convierte los stop reasons de Anthropic a finish reasons de OpenAI.
+ */
+const to_finish_reason = (stop_reason: string): string =>
+  stop_reason === "end_turn" ? "stop"
+    : stop_reason === "tool_use" ? "tool_calls"
+      : stop_reason === "max_tokens" ? "length"
+        : stop_reason;
+
+/**
+ * Translates our neutral message content (string or content blocks) into Anthropic's
+ * content blocks. Text passes through; image and document map to their Anthropic shape;
+ * audio is dropped (Anthropic does not support audio input).
  *
- * Provider dual-mode de Claude. Retorna una función que soporta
- * modo sin streaming y streaming via el segundo argumento opcional.
- * Transforma automáticamente entre formatos de mensaje OpenAI y Anthropic.
+ * Traduce nuestro contenido neutral (string o bloques) a los bloques de Anthropic.
+ * El texto pasa directo; imagen y documento se mapean a su forma Anthropic;
+ * el audio se descarta (Anthropic no soporta entrada de audio).
+ */
+const to_anthropic_content = (content: MessageContent | null): string | Array<Record<string, unknown>> => {
+  if (typeof content === "string" || content === null) {
+    return content ?? "";
+  }
+  return content.flatMap((b: ContentBlock): Array<Record<string, unknown>> =>
+    b.type === "text" ? [{ type: "text", text: b.text }]
+      : b.type === "image" ? [{ type: "image", source: b.source.type === "base64" ? { type: "base64", media_type: b.source.media_type, data: b.source.data } : { type: "url", url: b.source.url } }]
+        : b.type === "document" ? [{ type: "document", source: b.source.type === "base64" ? { type: "base64", media_type: b.source.media_type, data: b.source.data } : b.source.type === "url" ? { type: "url", url: b.source.url } : { type: "file", file_id: b.source.file_id } }]
+          : []);
+};
+
+/**
+ * Dual-mode Claude provider.
+ * Normalizes Claude's native message/tool format to the OpenAI-compatible
+ * ChatCompletionResponse and ProviderChunk interfaces used by the Agent.
+ *
+ * Provider dual-mode de Claude.
+ * Normaliza el formato nativo de mensajes y tools de Claude a las interfaces
+ * ChatCompletionResponse y ProviderChunk compatibles con OpenAI que usa el Agent.
  *
  * @example
  * ```typescript
- * const claude = new Claude({ api_key: "sk-ant-...", model: "claude-3-5-sonnet-20241022" });
+ * // API key clásica
+ * const claude = new Claude({ api_key: "sk-ant-...", model: "claude-sonnet-4-5" });
  *
- * // Non-streaming (call)
- * const response = await claude(ctx);
- *
- * // Streaming (stream)
+ * // Streaming
  * for await (const chunk of claude(ctx, { stream: true })) {
- *   // chunk: ProviderChunk
+ *   if (chunk.type === "thinking_delta") console.log("[think]", chunk.content);
+ *   if (chunk.type === "text_delta") process.stdout.write(chunk.content);
  * }
+ *
+ * // Extended thinking (vía body)
+ * const thinker = new Claude({
+ *   api_key: "sk-ant-...",
+ *   model: "claude-sonnet-4-5",
+ *   body: { thinking: { type: "enabled", budget_tokens: 8000 } },
+ * });
+ *
+ * // Claude Code OAuth — endpoint con ?beta=true + headers de betas
+ * const oauth = new Claude({
+ *   base_url: "https://api.anthropic.com/v1/messages?beta=true",
+ *   api_key: oauth_access_token,
+ *   headers: { "anthropic-beta": "oauth-2025-04-20,claude-code-20250219" },
+ *   model: "claude-sonnet-4-5",
+ * });
+ *
+ * // Endpoint compatible de un tercero (gateway/proxy)
+ * const proxy = new Claude({
+ *   base_url: "https://gateway.midominio.com/anthropic/messages",
+ *   headers: { "x-gateway-key": "..." },
+ *   model: "claude-sonnet-4-5",
+ * });
  * ```
  */
 export default interface Claude extends Provider { }
 export default class Claude extends Function {
   constructor(options: ClaudeProviderOptions) {
     super();
-
-    const base_url = options.base_url ?? "https://api.anthropic.com/v1";
-
-    const build_payload = (ctx: Context) => {
-      const rules_content = ctx.rules.length
-        ? ctx.rules.map((r) => r.description).join("\n\n")
-        : "";
-
-      const context_messages = ctx.messages.map((m) => {
-        const json = m.toJSON();
-        const { timestamp, ...message } = json;
-        return message;
+    options.base_url ||= "https://api.anthropic.com/v1/messages";
+    return ((ctx: Context, opts?: { stream?: boolean; signal?: AbortSignal }): any => {
+      const system = [
+        ...ctx.rules.map((r) => r.description),
+        ...ctx.messages.filter((m) => m.role === "system").map((m) => m.content ?? ""),
+      ].filter(Boolean).join("\n\n") || undefined;
+      const response = fetch(options.base_url!, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          ...(options.api_key && { Authorization: `Bearer ${options.api_key}` }),
+          ...options.headers,
+        },
+        signal: opts?.signal,
+        body: JSON.stringify({
+          model: options.model,
+          max_tokens: options.max_tokens ?? 1024,
+          ...(options.temperature !== undefined && { temperature: options.temperature }),
+          ...(system && { system }),
+          ...(ctx.tools.length && {
+            tools: ctx.tools.map((t) => {
+              const { function: fn } = t.toJSON();
+              return {
+                name: fn.name,
+                description: fn.description,
+                input_schema: {
+                  type: "object" as const,
+                  properties: fn.parameters.properties,
+                  required: fn.parameters.required ?? Object.keys(fn.parameters.properties ?? {}),
+                },
+              };
+            }),
+          }),
+          ...options.body,
+          ...(opts?.stream && { stream: true }),
+          messages: ctx.messages
+            .filter((m) => m.role !== "system")
+            .map((m) => {
+              const { timestamp, ...msg } = m.toJSON();
+              if (msg.role === "tool") {
+                return {
+                  role: "user" as const,
+                  content: [{ type: "tool_result" as const, tool_use_id: msg.tool_call_id, content: to_anthropic_content(msg.content) }],
+                };
+              }
+              if (msg.role === "assistant" && (msg.tool_calls?.length || (msg.thinking && msg.thinking_signature))) {
+                return {
+                  role: "assistant" as const,
+                  content: [
+                    ...(msg.thinking && msg.thinking_signature ? [{ type: "thinking" as const, thinking: msg.thinking, signature: msg.thinking_signature }] : []),
+                    ...(typeof msg.content === "string" && msg.content ? [{ type: "text" as const, text: msg.content }] : []),
+                    ...(msg.tool_calls ?? []).map((tc) => ({
+                      type: "tool_use" as const,
+                      id: tc.id,
+                      name: tc.function.name,
+                      input: JSON.parse(tc.function.arguments),
+                    })),
+                  ],
+                };
+              }
+              return { role: msg.role as "user" | "assistant", content: to_anthropic_content(msg.content) };
+            }),
+        }),
+      }).then((res) => {
+        if (!res.ok) {
+          throw new Error(`Claude API error: ${res.status} ${res.statusText}`);
+        }
+        return res;
       });
 
-      const system_messages = context_messages
-        .filter((m) => m.role === "system")
-        .map((m) => m.content)
-        .filter((c): c is string => typeof c === "string");
-
-      const system_parts = [rules_content, ...system_messages].filter(Boolean);
-      const system_prompt = system_parts.length ? system_parts.join("\n\n") : undefined;
-
-      const conversation_messages = context_messages
-        .filter((m) => m.role !== "system")
-        .map((m) => {
-          if (m.role === "tool") {
-            return {
-              role: "user" as const,
-              content: [{
-                type: "tool_result" as const,
-                tool_use_id: m.tool_call_id,
-                content: m.content,
-              }],
-            };
-          }
-
-          if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
-            const content_blocks: any[] = [];
-            if (m.content) {
-              content_blocks.push({ type: "text", text: m.content });
-            }
-            m.tool_calls.forEach((tc) => {
-              content_blocks.push({
-                type: "tool_use",
-                id: tc.id,
-                name: tc.function.name,
-                input: JSON.parse(tc.function.arguments),
-              });
-            });
-            return { role: "assistant" as const, content: content_blocks };
-          }
-
-          return m;
-        });
-
-      const tools = ctx.tools.length
-        ? ctx.tools.map((t) => {
-          const json = t.toJSON();
-          return {
-            name: json.function.name,
-            description: json.function.description,
-            input_schema: {
-              type: "object",
-              properties: json.function.parameters.properties,
-              required: json.function.parameters.required ?? Object.keys(json.function.parameters.properties ?? {}),
-            },
-          };
-        })
-        : undefined;
-
-      return { system_prompt, conversation_messages, tools };
-    };
-
-    const build_headers = () => ({
-      "Content-Type": "application/json",
-      "x-api-key": options.api_key,
-      "anthropic-version": "2023-06-01",
-      ...(options.headers ?? {}),
-    });
-
-    const build_body = (payload: ReturnType<typeof build_payload>, stream: boolean) => ({
-      model: options.model,
-      ...(payload.system_prompt && { system: payload.system_prompt }),
-      messages: payload.conversation_messages,
-      ...(payload.tools && { tools: payload.tools }),
-      temperature: options.temperature ?? 1.0,
-      max_tokens: options.max_tokens ?? 1024,
-      ...(stream && { stream: true }),
-    });
-
-    return ((ctx: Context, opts?: { stream?: true; signal?: AbortSignal }): any => {
-      const payload = build_payload(ctx);
-      const signal = opts?.signal;
-
       if (!opts?.stream) {
-        return (async (): Promise<ChatCompletionResponse> => {
-          const response = await fetch(`${base_url}/messages`, {
-            method: "POST",
-            headers: build_headers(),
-            signal,
-            body: JSON.stringify(build_body(payload, false)),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
-          }
-
-          const claude_response = await response.json();
-
-          const content_blocks = claude_response.content ?? [];
-          const text_content = content_blocks
-            .filter((block: any) => block.type === "text")
-            .map((block: any) => block.text)
-            .join("\n");
-
-          const reasoning_content = content_blocks
-            .filter((block: any) => block.type === "thinking")
-            .map((block: any) => block.thinking)
-            .join("\n") || undefined;
-
-          const tool_calls = content_blocks
-            .filter((block: any) => block.type === "tool_use")
-            .map((block: any) => ({
-              id: block.id,
-              type: "function" as const,
-              function: {
-                name: block.name,
-                arguments: JSON.stringify(block.input),
-              },
-            }));
-
+        return response.then(async (res) => {
+          const data = await res.json();
+          const blocks = data.content ?? [];
+          const thinking_block = blocks.find((b: any) => b.type === "thinking");
+          const tool_calls = blocks
+            .filter((b: any) => b.type === "tool_use")
+            .map((b: any) => ({ id: b.id, type: "function" as const, function: { name: b.name, arguments: JSON.stringify(b.input) } }));
           return {
-            id: claude_response.id,
+            id: data.id,
             object: "chat.completion",
             created: Math.floor(Date.now() / 1000),
-            model: claude_response.model,
+            model: data.model,
             choices: [{
               index: 0,
               message: {
                 role: "assistant",
-                content: text_content || null,
-                tool_calls: tool_calls.length > 0 ? tool_calls : undefined,
-                reasoning_content,
+                content: blocks.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n") || null,
+                tool_calls: tool_calls.length ? tool_calls : undefined,
+                reasoning_content: thinking_block?.thinking,
+                reasoning_signature: thinking_block?.signature,
               },
-              finish_reason:
-                claude_response.stop_reason === "end_turn" ? "stop"
-                  : claude_response.stop_reason === "tool_use" ? "tool_calls"
-                    : claude_response.stop_reason === "max_tokens" ? "length"
-                      : null,
+              finish_reason: to_finish_reason(data.stop_reason ?? ""),
             }],
             usage: {
-              prompt_tokens: claude_response.usage?.input_tokens ?? 0,
-              completion_tokens: claude_response.usage?.output_tokens ?? 0,
-              total_tokens:
-                (claude_response.usage?.input_tokens ?? 0) +
-                (claude_response.usage?.output_tokens ?? 0),
+              prompt_tokens: data.usage?.input_tokens ?? 0,
+              completion_tokens: data.usage?.output_tokens ?? 0,
+              total_tokens: (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0),
             },
-          };
-        })();
+          } as ChatCompletionResponse;
+        });
       }
 
       return (async function* (): AsyncGenerator<ProviderChunk, void, unknown> {
-        const response = await fetch(`${base_url}/messages`, {
-          method: "POST",
-          headers: build_headers(),
-          signal,
-          body: JSON.stringify(build_body(payload, true)),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
-        }
-
         let tool_index = -1;
-
-        for await (const { event, data } of parse_anthropic_sse(response)) {
-          if (event === "content_block_start") {
-            if (data.content_block?.type === "tool_use") {
-              tool_index++;
-              yield {
-                type: "tool_call_delta",
-                index: tool_index,
-                id: data.content_block.id,
-                name: data.content_block.name,
-              };
-            }
-            continue;
+        for await (const { event, data } of parse_anthropic_sse(await response)) {
+          if (event === "content_block_start" && data.content_block?.type === "tool_use") {
+            tool_index++;
+            yield { type: "tool_call_delta", index: tool_index, id: data.content_block.id, name: data.content_block.name };
           }
-
           if (event === "content_block_delta") {
-            if (data.delta?.type === "thinking_delta" && data.delta.thinking) {
-              yield { type: "thinking_delta", content: data.delta.thinking };
-            }
-            if (data.delta?.type === "text_delta" && data.delta.text) {
-              yield { type: "text_delta", content: data.delta.text };
-            }
-            if (data.delta?.type === "input_json_delta" && data.delta.partial_json) {
-              yield {
-                type: "tool_call_delta",
-                index: tool_index,
-                arguments_delta: data.delta.partial_json,
-              };
-            }
-            continue;
+            if (data.delta?.type === "thinking_delta" && data.delta.thinking) yield { type: "thinking_delta", content: data.delta.thinking };
+            if (data.delta?.type === "signature_delta" && data.delta.signature) yield { type: "signature_delta", content: data.delta.signature };
+            if (data.delta?.type === "text_delta" && data.delta.text) yield { type: "text_delta", content: data.delta.text };
+            if (data.delta?.type === "input_json_delta" && data.delta.partial_json) yield { type: "tool_call_delta", index: tool_index, arguments_delta: data.delta.partial_json };
           }
-
-          if (event === "message_delta") {
-            const stop_reason = data.delta?.stop_reason;
-            if (stop_reason) {
-              yield {
-                type: "finish",
-                finish_reason:
-                  stop_reason === "end_turn" ? "stop"
-                    : stop_reason === "tool_use" ? "tool_calls"
-                      : stop_reason === "max_tokens" ? "length"
-                        : stop_reason,
-              };
-            }
-            continue;
+          if (event === "message_delta" && data.delta?.stop_reason) {
+            yield { type: "finish", finish_reason: to_finish_reason(data.delta.stop_reason) };
           }
         }
       })();

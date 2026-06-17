@@ -113,30 +113,8 @@ export default class OpenAI extends Function {
   constructor(options: OpenAIProviderOptions) {
     super();
     options.base_url ||= "https://api.openai.com/v1";
-    return (async (ctx: Context, opts?: { stream?: boolean, signal?: AbortSignal }) => {
-      const body = {
-        model: options.model,
-        ...options.extra_body,
-        ...(opts?.stream && { stream: true }),
-        ...(options.max_tokens && { max_tokens: options.max_tokens }),
-        ...(options.temperature && { temperature: options.temperature }),
-        tools: ctx.tools.length ? ctx.tools.map((t) => t.toJSON()) : undefined,
-        messages: [
-          ...(ctx.rules.length
-            ? [{ role: "system" as const, content: ctx.rules.map((r) => r.description).join("\n\n") }]
-            : []),
-          ...ctx.messages.map((m) => {
-            const { timestamp, ...msg } = m.toJSON();
-            return {
-              role: msg.role,
-              content: msg.content ?? null,
-              ...(msg.tool_calls?.length && { tool_calls: msg.tool_calls }),
-              ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
-            };
-          }),
-        ],
-      };
-      const response = await fetch(`${options.base_url}/chat/completions`, {
+    return ((ctx: Context, opts?: { stream?: boolean, signal?: AbortSignal }): any => {
+      const response = fetch(`${options.base_url}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -144,19 +122,49 @@ export default class OpenAI extends Function {
           ...options.headers,
         },
         signal: opts?.signal,
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          model: options.model,
+          ...options.extra_body,
+          ...(opts?.stream && { stream: true }),
+          ...(options.max_tokens && { max_tokens: options.max_tokens }),
+          ...(options.temperature && { temperature: options.temperature }),
+          ...(ctx.tools.length && { tools: ctx.tools.map((t) => t.toJSON()) }),
+          messages: [
+            ...(ctx.rules.length
+              ? [{ role: "system" as const, content: ctx.rules.map((r) => r.description).join("\n\n") }]
+              : []),
+            ...ctx.messages.map((m) => {
+              const { timestamp, ...msg } = m.toJSON();
+              return {
+                role: msg.role,
+                content: Array.isArray(msg.content)
+                  ? msg.content.flatMap((b): any[] =>
+                    b.type === "text" ? [{ type: "text", text: b.text }]
+                      : b.type === "image" ? [{ type: "image_url", image_url: { url: b.source.type === "base64" ? `data:${b.source.media_type};base64,${b.source.data}` : b.source.url } }]
+                        : b.type === "audio" ? [{ type: "input_audio", input_audio: { data: b.source.data, format: b.source.media_type.split("/")[1] ?? "wav" } }]
+                          : [])
+                  : msg.content ?? null,
+                ...(msg.tool_calls?.length && { tool_calls: msg.tool_calls }),
+                ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+              };
+            }),
+          ],
+        }),
+      }).then((res) => {
+        if (!res.ok) {
+          throw new Error(`OpenAI API error: ${res.status} ${res.statusText}`);
+        }
+        return res;
       });
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-      }
       if (!opts?.stream) {
-        return response.json() as Promise<ChatCompletionResponse>;
+        return response.then((res) => res.json() as Promise<ChatCompletionResponse>);
       }
       return (async function* (): AsyncGenerator<ProviderChunk, void, unknown> {
-        for await (const chunk of parse_sse(response)) {
+        for await (const chunk of parse_sse(await response)) {
           const delta = chunk.choices?.[0]?.delta;
           if (!delta) continue;
-          if (delta.reasoning_content) yield { type: "thinking_delta", content: delta.reasoning_content };
+          const reasoning = delta.reasoning_content ?? delta.reasoning;
+          if (reasoning) yield { type: "thinking_delta", content: reasoning };
           if (delta.content) yield { type: "text_delta", content: delta.content };
           if (delta.tool_calls) {
             for (const tc of delta.tool_calls) {
@@ -174,6 +182,6 @@ export default class OpenAI extends Function {
           }
         }
       })();
-    }) as any;
+    });
   }
 }
