@@ -9,9 +9,8 @@
     "url": "https://github.com/arcaelas/agent/issues"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.71",
     "@arcaelas/utils": "^2.0.5",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "description": "A small box of tools, which are implemented in different factions of the library.",
   "devDependencies": {
