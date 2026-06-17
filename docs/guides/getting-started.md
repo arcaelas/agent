@@ -15,7 +15,7 @@ Before you begin, ensure you have:
 Install @arcaelas/agent and required dependencies:
 
 ```bash
-npm install @arcaelas/agent openai dotenv
+npm install @arcaelas/agent dotenv
 ```
 
 ## Step 2: Environment Setup
@@ -32,30 +32,19 @@ Create a file `my-first-agent.ts`:
 
 ```typescript
 import 'dotenv/config';
-import { Agent } from '@arcaelas/agent';
-import OpenAI from 'openai';
+import { Agent, OpenAI } from '@arcaelas/agent';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  baseURL: "https://api.openai.com/v1",
-  apiKey: process.env.OPENAI_API_KEY
+// Create the provider — no external SDK needed
+const provider = new OpenAI({
+  api_key: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
 });
 
 // Create the agent
 const assistant = new Agent({
   name: "Personal_Assistant",
   description: "A helpful assistant that answers questions and provides information",
-  providers: [
-    async (ctx) => {
-      return await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: ctx.messages.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      });
-    }
-  ]
+  providers: [provider],
 });
 
 // Start conversation
@@ -88,8 +77,7 @@ Assistant: Hello! I'm your Personal Assistant, here to help answer questions and
 Tools allow your agent to perform actions. Let's add a time tool:
 
 ```typescript
-import { Agent, Tool } from '@arcaelas/agent';
-import OpenAI from 'openai';
+import { Agent, Tool, OpenAI } from '@arcaelas/agent';
 
 // Create a simple time tool
 const time_tool = new Tool("get_current_time", async (agent) => {
@@ -102,23 +90,11 @@ const assistant = new Agent({
   description: "Assistant that can tell the current time",
   tools: [time_tool],
   providers: [
-    async (ctx) => {
-      const openai = new OpenAI({
-        baseURL: "https://api.openai.com/v1",
-        apiKey: process.env.OPENAI_API_KEY
-      });
-
-      return await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: ctx.messages.map(m => ({
-          role: m.role,
-          content: m.content
-        })),
-        // Pass tools to the model
-        tools: ctx.tools?.map(tool => tool.toJSON())
-      });
-    }
-  ]
+    new OpenAI({
+      api_key: process.env.OPENAI_API_KEY!,
+      model: "gpt-4o-mini",
+    }),
+  ],
 });
 
 // Ask for the time
@@ -136,7 +112,7 @@ The agent will:
 Rules define how your agent should behave:
 
 ```typescript
-import { Agent, Rule } from '@arcaelas/agent';
+import { Agent, Rule, OpenAI } from '@arcaelas/agent';
 
 const assistant = new Agent({
   name: "Professional_Assistant",
@@ -146,72 +122,53 @@ const assistant = new Agent({
     new Rule("Never share confidential information"),
     new Rule("If unsure, admit it rather than making up information")
   ],
-  providers: [openai_provider]
+  providers: [
+    new OpenAI({ api_key: process.env.OPENAI_API_KEY!, model: "gpt-4o-mini" }),
+  ],
 });
 ```
 
 ## Step 6: Multi-Provider Setup
 
-Add automatic failover between providers:
+Add automatic failover between providers. All providers are built-in — no
+external SDKs needed:
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
+import { Agent, OpenAI, Claude, Groq } from '@arcaelas/agent';
 
 const resilient_agent = new Agent({
   name: "Resilient_Agent",
   description: "High-availability assistant",
   providers: [
     // Primary: OpenAI
-    async (ctx) => {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      return await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: ctx.messages.map(m => ({ role: m.role, content: m.content }))
-      });
-    },
-
+    new OpenAI({
+      api_key: process.env.OPENAI_API_KEY!,
+      model: "gpt-4o-mini",
+    }),
     // Backup: Anthropic Claude
-    async (ctx) => {
-      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 4000,
-        messages: ctx.messages.map(m => ({
-          role: m.role === "system" ? "user" : m.role,
-          content: m.content
-        }))
-      });
-
-      // Convert to OpenAI format
-      return {
-        id: response.id,
-        object: "chat.completion",
-        created: Math.floor(Date.now() / 1000),
-        model: "claude-sonnet-4-5",
-        choices: [{
-          index: 0,
-          message: {
-            role: "assistant",
-            content: response.content[0].text
-          },
-          finish_reason: "stop"
-        }]
-      };
-    }
-  ]
+    new Claude({
+      api_key: process.env.ANTHROPIC_API_KEY!,
+      model: "claude-haiku-3-5",
+    }),
+    // Fallback: Groq (ultra-fast)
+    new Groq({
+      api_key: process.env.GROQ_API_KEY!,
+      model: "llama-3.1-8b-instant",
+    }),
+  ],
 });
 ```
 
-If OpenAI fails, the agent automatically tries Claude.
+If OpenAI fails, the agent automatically tries Claude, then Groq. Other
+available providers: `DeepSeek` (reasoning/code) and `Ollama` (local models,
+no API key required). See the **[Providers guide](providers.md)** for details.
 
 ## Step 7: Context Inheritance
 
 Create reusable contexts for organizational structure:
 
 ```typescript
-import { Agent, Context, Metadata, Rule } from '@arcaelas/agent';
+import { Agent, Context, Metadata, Rule, OpenAI } from '@arcaelas/agent';
 
 // Company-wide base context
 const company_context = new Context({
@@ -236,7 +193,9 @@ const support_agent = new Agent({
   name: "Support_Agent",
   description: "Customer support specialist",
   contexts: support_context,  // Has access to everything
-  providers: [openai_provider]
+  providers: [
+    new OpenAI({ api_key: process.env.OPENAI_API_KEY!, model: "gpt-4o-mini" }),
+  ],
 });
 
 // Agent automatically has:
@@ -252,8 +211,7 @@ Here's a complete, production-ready example:
 
 ```typescript
 import 'dotenv/config';
-import { Agent, Tool, Rule, Metadata } from '@arcaelas/agent';
-import OpenAI from 'openai';
+import { Agent, Tool, Rule, Metadata, OpenAI } from '@arcaelas/agent';
 
 // Create utility tools
 const weather_tool = new Tool("get_weather", {
@@ -289,22 +247,11 @@ const assistant = new Agent({
   ],
 
   providers: [
-    async (ctx) => {
-      const openai = new OpenAI({
-        baseURL: "https://api.openai.com/v1",
-        apiKey: process.env.OPENAI_API_KEY
-      });
-
-      return await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: ctx.messages.map(m => ({
-          role: m.role,
-          content: m.content
-        })),
-        tools: ctx.tools?.map(tool => tool.toJSON())
-      });
-    }
-  ]
+    new OpenAI({
+      api_key: process.env.OPENAI_API_KEY!,
+      model: "gpt-4o-mini",
+    }),
+  ],
 });
 
 // Interactive conversation loop
@@ -341,6 +288,30 @@ async function startChat() {
 
 startChat();
 ```
+
+## Streaming Responses
+
+Use `agent.stream()` instead of `agent.call()` to receive tokens as they arrive.
+It returns an `AsyncGenerator<StreamChunk>` with four possible chunk roles:
+
+```typescript
+import { Agent, OpenAI } from '@arcaelas/agent';
+
+const agent = new Agent({
+  providers: [new OpenAI({ api_key: process.env.OPENAI_API_KEY!, model: "gpt-4o-mini" })],
+});
+
+for await (const chunk of agent.stream("Tell me a short story")) {
+  if (chunk.role === "assistant") process.stdout.write(chunk.content);  // text token
+  if (chunk.role === "thinking")  process.stdout.write(`[think] ${chunk.content}`); // reasoning
+  if (chunk.role === "tool_call") console.log(`\n→ calling ${chunk.name}(${chunk.arguments})`);
+  if (chunk.role === "tool")      console.log(`← ${chunk.name}: ${chunk.content}`);
+}
+```
+
+`stream()` handles the full agentic loop (tool calls, re-invocations) exactly
+like `call()`. See the **[Providers guide](providers.md)** for provider-specific
+streaming capabilities (e.g. `thinking` chunks from DeepSeek or Claude).
 
 ## Next Steps
 

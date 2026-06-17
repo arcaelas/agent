@@ -135,7 +135,7 @@ type Provider = {
 - Output (non-stream): `ChatCompletionResponse` (OpenAI-compatible format)
 - Output (stream): `AsyncIterable<ProviderChunk>` — includes `thinking_delta` for model reasoning
 
-Built-in provider classes (`OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`) extend `Function` and are callable as providers. They parse model thinking natively and emit it as `thinking_delta` chunks.
+Built-in provider classes (`OpenAI`, `Groq`, `DeepSeek`, `Claude`, `Ollama`) extend `Function` and are callable as providers. They parse model thinking natively and emit it as `thinking_delta` chunks.
 
 ## Data Flow
 
@@ -239,14 +239,26 @@ class Agent {
 
 ### 3. Discriminated Unions (Message)
 
-TypeScript discriminated unions for type-safe message handling:
+TypeScript discriminated unions for type-safe message handling. `content` is
+`MessageContent` — either a plain `string` or an array of `ContentBlock`s
+(`TextBlock | ImageBlock | AudioBlock | DocumentBlock`) for multimodal messages:
 
 ```typescript
-type Message =
-  | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string }
-  | { role: 'tool'; tool_call_id: string; content: string }
-  | { role: 'system'; content: string }
+// MessageContent = string | ContentBlock[]
+type MessageOptions =
+  | { role: 'user';      content: MessageContent }
+  | { role: 'assistant'; content: string | null; tool_calls?: ToolCall[]; thinking?: string; thinking_signature?: string }
+  | { role: 'tool';      content: MessageContent; tool_call_id: string }
+  | { role: 'system';    content: string }
+
+// Multimodal example
+const vision_msg = new Message({
+  role: 'user',
+  content: [
+    { type: 'text', text: 'What do you see in this image?' },
+    { type: 'image', source: { type: 'url', url: 'https://example.com/photo.jpg' } },
+  ],
+});
 ```
 
 ### 4. Promise.all for Tools

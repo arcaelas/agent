@@ -2,13 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## \[2.1.0]
+
+### Added
+
+- `Ollama` provider for running local open-source models via Ollama's OpenAI-compatible API. Options: `{ model, base_url?, think?, num_ctx? }` (no `api_key` — defaults to `"ollama"`).
+- Multimodal `Message.content`: now `string | ContentBlock[]`. New exported types: `TextBlock`, `ImageBlock`, `AudioBlock`, `DocumentBlock`, `ContentBlock`, `MessageContent`. Each provider translates supported blocks to its wire format and drops unsupported ones (e.g. Claude drops audio, OpenAI drops document).
+- Extended thinking on `Message`: optional `thinking` and `thinking_signature` fields on `assistant` messages, persisted across turns. Anthropic's signature is reinjected automatically so multi-turn thinking is accepted by the API.
+- `ProviderChunk { type: "signature_delta" }` to carry the thinking signature in streaming mode.
+- `ResponseMessage.reasoning_signature?: string` optional field.
+
+### Changed
+
+- `Claude` provider options reworked: `base_url` is now the **full endpoint URL** (no `/messages` appended), `api_key` is **optional** (sent as `Authorization: Bearer`), and a new `body` field extends the request payload. This single provider now covers both the classic API key flow and the Claude Code OAuth flow (`base_url` with `?beta=true` + OAuth token in `api_key` + betas in `headers`).
+- OpenAI-compatible providers (`Groq`, `DeepSeek`, `Ollama`) now extend the `OpenAI` base class — minimal subclasses that only override defaults.
+- Providers read `delta.reasoning` in addition to `delta.reasoning_content` for thinking (Ollama compatibility).
+
+### Removed (breaking)
+
+- `ClaudeCode` provider and `ClaudeCodeOptions` type. Use `Claude` with `base_url`, OAuth token in `api_key`, and betas in `headers` instead.
+- The temporary `Think` class (it existed only internally) — thinking is now part of `Message`.
+
+## \[2.0.0]
+
+### Changed (breaking)
+
+- `Message.content` type widened from `string` to `string | ContentBlock[]` to support multimodal input/output. Plain `string` content remains fully backward-compatible.
+
 ## \[1.8.0]
 
 ### Added
 
 - `branches` option on `AgentOptions`: array of sub-agents (`Agent`, `AgentOptions`, or description string) that run sequentially before each `call()` / `stream()` turn, building accumulated thinking injected as ephemeral `system` message.
 - `Agent.stream()` method: async generator yielding `StreamChunk` (`assistant`, `thinking`, `tool_call`, `tool` roles).
-- `ProviderChunk { type: "thinking_delta" }`: all built-in providers (`OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`) parse native model thinking.
+- `ProviderChunk { type: "thinking_delta" }`: all built-in providers parse native model thinking.
 - `ResponseMessage.reasoning_content?: string` optional field.
 - Built-in tools: `AgentTool`, `AskTool`, `ChoiceTool`, `SleepTool`.
 - Context constructor now accepts plain objects: `metadata` as `Record<string,string>`, `rules` as `string | string[]`, `messages` as `MessageOptions | MessageOptions[]`.

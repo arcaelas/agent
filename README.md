@@ -901,7 +901,7 @@ interface ResponseMessage {
 
 ### Built-in Providers
 
-The library exports callable provider classes: `OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`. All parse model thinking natively.
+The library exports callable provider classes: `OpenAI`, `Groq`, `DeepSeek`, `Claude`, `Ollama`. All parse model thinking natively and support multimodal content (text, image, audio, document).
 
 ### Custom Provider Example
 ```typescript
@@ -1301,15 +1301,16 @@ Help others and improve the ecosystem:
 
 ### Recent Releases
 
-#### v1.8.0 (Current)
-- ✨ **New**: `branches` pipeline — sub-agents that build accumulated thinking before the main turn
-- ✨ **New**: `stream()` method on Agent yielding `StreamChunk` with `thinking`, `tool_call`, and `tool` roles
-- ✨ **New**: Built-in tools: `AgentTool`, `AskTool`, `ChoiceTool`, `SleepTool`
-- ✨ **New**: `ProviderChunk { type: "thinking_delta" }` — all built-in providers parse model thinking
-- ✨ **New**: `ResponseMessage.reasoning_content` optional field
-- 🔧 **Improved**: Context constructor accepts plain objects (`Record<string,string>`, strings, `MessageOptions`)
-- 🔧 **Improved**: Context setters for `rules`, `tools`, `messages` are idempotent (filter by reference)
-- 🗑️ **Removed**: `Context.appendMessages()` and `Context.spliceAt()` methods
+#### v2.1.0 (Current)
+- ✨ **New**: `Ollama` provider — run local open-source models via Ollama, with `think` and `num_ctx` options
+- ✨ **New**: Multimodal `Message.content` — `string | ContentBlock[]` supporting `TextBlock`, `ImageBlock`, `AudioBlock`, `DocumentBlock`
+- ✨ **New**: Extended thinking on `Message` — `thinking` and `thinking_signature` fields persisted across turns (Anthropic signature reinjected automatically)
+- ✨ **New**: `ProviderChunk { type: "signature_delta" }` — carries the thinking signature in streaming mode
+- 🔧 **Improved**: `Claude` provider — configurable `base_url` (full endpoint URL), optional `api_key`, custom `headers` and `body` (covers both classic API key and Claude Code OAuth)
+- 🔧 **Improved**: OpenAI-compatible providers (`Groq`, `DeepSeek`, `Ollama`) extend `OpenAI` — minimal, consistent
+- 🗑️ **Removed (breaking)**: `ClaudeCode` provider and `ClaudeCodeOptions` — replaced by `Claude` with `base_url` + OAuth token in `api_key` + betas in `headers`
+
+> **Breaking changes in v2** — see the [Migration Guide](docs/advanced/migration.md).
 
 [View Complete Changelog](https://github.com/arcaelas/agent/blob/main/CHANGELOG.md)
 

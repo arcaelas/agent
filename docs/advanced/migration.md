@@ -2,6 +2,83 @@
 
 Guide for upgrading between versions.
 
+## Migrating to v2.x
+
+v2 introduces multimodal messages, extended thinking, the `Ollama` provider, and a reworked `Claude` provider. Most code keeps working — the breaking changes are scoped.
+
+### Removed (breaking): `ClaudeCode` provider
+
+The `ClaudeCode` provider and `ClaudeCodeOptions` were removed. The standard `Claude` provider now covers the Claude Code OAuth flow through its configurable `base_url`, `api_key`, and `headers`.
+
+**Before** (v1.x):
+```typescript
+import { ClaudeCode } from '@arcaelas/agent';
+const provider = new ClaudeCode({ model: "sonnet", think: "none", dirname: "/path/to/profile" });
+```
+
+**After** (v2.x) — classic API key:
+```typescript
+import { Claude } from '@arcaelas/agent';
+const provider = new Claude({ api_key: "sk-ant-...", model: "claude-sonnet-4-5" });
+```
+
+**After** (v2.x) — Claude Code OAuth:
+```typescript
+const provider = new Claude({
+  base_url: "https://api.anthropic.com/v1/messages?beta=true",
+  api_key: oauth_access_token,                                  // OAuth token
+  headers: { "anthropic-beta": "oauth-2025-04-20,claude-code-20250219" },
+  model: "claude-sonnet-4-5",
+});
+```
+
+### Changed (breaking): `Claude` provider options
+
+- `base_url` is now the **full endpoint URL** (it is no longer suffixed with `/messages`). Default: `https://api.anthropic.com/v1/messages`.
+- `api_key` is now **optional** and sent as `Authorization: Bearer <api_key>`. Omit it when auth is handled entirely via `headers`.
+- Use **`body`** (not `extra_body`) to extend the request payload. Extended thinking goes here:
+
+```typescript
+const thinker = new Claude({
+  api_key: "sk-ant-...",
+  model: "claude-sonnet-4-5",
+  body: { thinking: { type: "enabled", budget_tokens: 8000 } },
+});
+```
+
+> Note: `OpenAI` (and its subclasses `Groq`, `DeepSeek`, `Ollama`) use `extra_body`; only `Claude` uses `body`.
+
+### Changed (breaking): `Message.content` is multimodal
+
+`content` widened from `string` to `string | ContentBlock[]`. Plain strings are fully backward-compatible. Multimodal content uses neutral blocks each provider translates:
+
+```typescript
+new Message({
+  role: "user",
+  content: [
+    { type: "text", text: "What's in this image?" },
+    { type: "image", source: { type: "base64", media_type: "image/png", data: "iVBOR..." } },
+  ],
+});
+```
+
+If your code reads `m.content` assuming it is always a string, guard it:
+```typescript
+const text = typeof m.content === "string" ? m.content : "";
+```
+
+### New: `Ollama` provider (local models)
+
+```typescript
+import { Ollama } from '@arcaelas/agent';
+const classifier = new Ollama({ model: "qwen3:8b", think: false });   // fast
+const auditor    = new Ollama({ model: "qwen3:8b", think: true });    // reasoning
+```
+
+### New: Extended thinking on `Message`
+
+`assistant` messages may carry `thinking` and `thinking_signature`. The Agent persists them and reinjects the signature on the next turn so Anthropic accepts multi-turn thinking automatically. No action required — it works out of the box when the model emits thinking.
+
 ## Migrating to v1.8.x
 
 ### Removed: `Context.appendMessages()` and `Context.spliceAt()`
@@ -79,7 +156,9 @@ import { AgentTool, AskTool, ChoiceTool, SleepTool, TimeTool, RemoteTool } from 
 
 ## Version History
 
-- **v1.8.x** - Current: branches, stream(), new built-in tools, thinking support
+- **v2.1.x** - Current: `Ollama` provider, multimodal `Message.content`, extended thinking with signature, reworked `Claude` provider; removed `ClaudeCode`
+- **v2.0.x** - `Message.content` widened to `string | ContentBlock[]`
+- **v1.8.x** - branches, stream(), built-in tools, thinking support
 - **v1.7.x** - Built-in provider classes
 - **v1.0.x** - Initial stable release
 - **v0.x** - Pre-release

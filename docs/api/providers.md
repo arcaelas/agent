@@ -35,13 +35,20 @@ type Provider = {
 
 ```typescript
 type ProviderChunk =
-  | { type: "text_delta"; content: string }
-  | { type: "thinking_delta"; content: string }
+  | { type: "text_delta";      content: string }
+  | { type: "thinking_delta";  content: string }
+  | { type: "signature_delta"; content: string }
   | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
-  | { type: "finish"; finish_reason: string };
+  | { type: "finish";          finish_reason: string };
 ```
 
-The `thinking_delta` chunk carries model reasoning content (e.g. from Claude extended thinking or DeepSeek R1's `reasoning_content`). The agent emits these as `StreamChunk { role: "thinking" }` to the consumer but **does not** persist thinking in `messages` or re-inject it to the model.
+- `text_delta` — incremental text token from the model.
+- `thinking_delta` — incremental reasoning/thinking token (Claude extended thinking, DeepSeek R1 `reasoning_content`, etc.).
+- `signature_delta` — cryptographic signature of the thinking block (Anthropic-specific). Accumulated and stored as `thinking_signature` on the persisted `assistant` message so the API can accept the block when reinjected in subsequent turns.
+- `tool_call_delta` — partial tool call accumulation (index, id, name, arguments fragment).
+- `finish` — signals end of generation with the finish reason.
+
+The `thinking_delta` / `signature_delta` chunks are emitted as `StreamChunk { role: "thinking" }` to the consumer. The Agent accumulates both to persist `thinking` and `thinking_signature` on the stored `assistant` message.
 
 ### ResponseMessage (non-stream)
 
@@ -74,107 +81,153 @@ interface ChatCompletion {
 }
 ```
 
-## Provider Examples
+## Built-in Provider Classes
 
-> All provider examples receive a `Context` instance (`ctx`), not the `Agent`. Use `ctx.messages`, `ctx.tools`, etc.
+The library exports five ready-to-use callable provider classes: **`OpenAI`**, **`Groq`**, **`DeepSeek`**, **`Claude`**, **`Ollama`**. Each extends `Function` and is directly usable as a `Provider`.
 
-### OpenAI Provider
+### OpenAI
 
 ```typescript
-import OpenAI from 'openai';
-import type { Provider } from '@arcaelas/agent';
+import { OpenAI } from '@arcaelas/agent';
 
-const openai_provider: Provider = async (ctx) => {
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  api_key: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o",
+  // base_url?: string          // default: "https://api.openai.com/v1"
+  // temperature?: number
+  // max_tokens?: number
+  // headers?: Record<string, string>
+  // extra_body?: Record<string, unknown>  // pass-through to request body
+});
 
-  return await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: ctx.messages.map(m => ({
-      role: m.role,
-      content: m.content,
-      ...(m.tool_call_id && { tool_call_id: m.tool_call_id }),
-      ...(m.tool_calls && { tool_calls: m.tool_calls }),
-    })),
-    tools: ctx.tools.length
-      ? ctx.tools.map(tool => tool.toJSON())
-      : undefined,
-  });
-};
+const agent = new Agent({ providers: [openai] });
 ```
 
-### Anthropic Provider (manual adapter)
-
-The library ships a built-in `Claude` provider class. For a manual adapter example:
+Use `extra_body` for provider-specific parameters (e.g. `reasoning_effort`):
 
 ```typescript
-import Anthropic from '@anthropic-ai/sdk';
-import type { Provider } from '@arcaelas/agent';
-
-const anthropic_provider: Provider = async (ctx) => {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-  const response = await anthropic.messages.create({
-    model: "claude-opus-4-5",
-    max_tokens: 4096,
-    system: ctx.rules.map(r => r.description).join("\n") || undefined,
-    messages: ctx.messages
-      .filter(m => m.role !== "system")
-      .map(m => ({
-        role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content ?? "",
-      })),
-    tools: ctx.tools.length
-      ? ctx.tools.map(t => t.toJSON().function)
-      : undefined,
-  });
-
-  return {
-    id: response.id,
-    object: "chat.completion",
-    created: Math.floor(Date.now() / 1000),
-    model: response.model,
-    choices: [{
-      index: 0,
-      message: {
-        role: "assistant",
-        content: response.content.find(b => b.type === "text")?.text ?? null,
-        reasoning_content: response.content.find(b => b.type === "thinking")?.thinking,
-      },
-      finish_reason: response.stop_reason === "end_turn" ? "stop" : response.stop_reason,
-    }],
-    usage: {
-      prompt_tokens: response.usage.input_tokens,
-      completion_tokens: response.usage.output_tokens,
-      total_tokens: response.usage.input_tokens + response.usage.output_tokens,
-    },
-  };
-};
-```
-
-### Built-in Provider Classes
-
-The library exports ready-to-use callable provider classes: `OpenAI`, `Groq`, `DeepSeek`, `Claude`, `ClaudeCode`. Each extends `Function` and is invocable as a provider:
-
-```typescript
-import { Claude, OpenAI as OpenAIProvider } from '@arcaelas/agent';
-
-const claude = new Claude({ apiKey: process.env.ANTHROPIC_API_KEY, model: "claude-opus-4-5" });
-const openai = new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o" });
-
-const agent = new Agent({
-  description: "Multi-provider assistant",
-  providers: [openai, claude],
+const o3 = new OpenAI({
+  api_key: process.env.OPENAI_API_KEY!,
+  model: "o3",
+  extra_body: { reasoning_effort: "high" },
 });
 ```
 
+### Groq
+
+```typescript
+import { Groq } from '@arcaelas/agent';
+
+const groq = new Groq({
+  api_key: process.env.GROQ_API_KEY!,
+  model: "llama-3.3-70b-versatile",
+});
+```
+
+`Groq` is an `OpenAI`-compatible provider — it accepts the same options and uses `extra_body` for Groq-specific parameters.
+
+### DeepSeek
+
+```typescript
+import { DeepSeek } from '@arcaelas/agent';
+
+const deepseek = new DeepSeek({
+  api_key: process.env.DEEPSEEK_API_KEY!,
+  model: "deepseek-reasoner",
+});
+```
+
+`DeepSeek` is an `OpenAI`-compatible provider. Streaming mode reads `delta.reasoning_content` and emits it as `thinking_delta` chunks.
+
+### Claude
+
+`Claude` uses the **Anthropic Messages API** (not OpenAI-compatible). Key differences:
+- Uses `body` (not `extra_body`) for Anthropic-specific request fields.
+- `api_key` is **optional** — omit it when authentication is handled entirely via `headers`.
+- `base_url` is the **full endpoint URL** (default: `"https://api.anthropic.com/v1/messages"`).
+
+```typescript
+import { Claude } from '@arcaelas/agent';
+
+// Classic API key
+const claude = new Claude({
+  api_key: process.env.ANTHROPIC_API_KEY!,
+  model: "claude-sonnet-4-5",
+  // base_url?: string   // full URL, default: "https://api.anthropic.com/v1/messages"
+  // temperature?: number
+  // max_tokens?: number  // default: 1024
+  // headers?: Record<string, string>
+  // body?: Record<string, unknown>  // merged into the Anthropic request body
+});
+
+// Extended thinking (via body)
+const thinker = new Claude({
+  api_key: process.env.ANTHROPIC_API_KEY!,
+  model: "claude-sonnet-4-5",
+  body: { thinking: { type: "enabled", budget_tokens: 8000 } },
+});
+
+// Claude Code OAuth flow — full endpoint URL with ?beta=true + beta headers
+const oauth_claude = new Claude({
+  base_url: "https://api.anthropic.com/v1/messages?beta=true",
+  api_key: oauth_access_token,
+  headers: { "anthropic-beta": "oauth-2025-04-20,claude-code-20250219" },
+  model: "claude-sonnet-4-5",
+});
+
+// Third-party gateway / proxy (authentication via custom headers, no api_key)
+const proxy_claude = new Claude({
+  base_url: "https://gateway.example.com/anthropic/messages",
+  headers: { "x-gateway-key": "..." },
+  model: "claude-sonnet-4-5",
+});
+```
+
+> **Extended thinking:** Anthropic only emits `thinking` blocks when the request explicitly enables it via `body: { thinking: { type: "enabled", budget_tokens: <n> } }`. Without that flag the model returns no thinking content.
+
+### Ollama
+
+`Ollama` runs open-source models locally via Ollama's OpenAI-compatible API. It does **not** require an `api_key` and exposes `think` and `num_ctx` as first-class options.
+
+```typescript
+import { Ollama } from '@arcaelas/agent';
+
+// Basic usage — default base_url: "http://localhost:11434/v1"
+const ollama = new Ollama({ model: "qwen3:8b" });
+
+// Fast classifier (disable thinking)
+const classifier = new Ollama({ model: "qwen3:8b", think: false });
+
+// Deep reasoner (enable thinking)
+const reasoner = new Ollama({ model: "qwen3:8b", think: true });
+
+// Extended context window
+const explorer = new Ollama({ model: "qwen2.5-coder:7b", num_ctx: 16384 });
+
+// Remote Ollama instance
+const remote = new Ollama({
+  model: "llama3.2:3b",
+  base_url: "http://192.168.1.10:11434/v1",
+});
+```
+
+**`OllamaProviderOptions`:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `model` | `string` | — | Model identifier (required) |
+| `base_url` | `string` | `"http://localhost:11434/v1"` | Ollama API base URL |
+| `think` | `boolean \| undefined` | `undefined` | Force thinking on/off; `undefined` lets the model decide |
+| `num_ctx` | `number` | model default | Context window size in tokens |
+| `temperature` | `number` | — | Sampling temperature |
+| `max_tokens` | `number` | — | Maximum tokens to generate |
+| `headers` | `Record<string, string>` | — | Extra HTTP headers |
+
 All built-in providers parse model thinking natively:
-- **OpenAI / Groq / DeepSeek**: read `delta.reasoning_content` (stream) or `message.reasoning_content` (non-stream).
-- **Claude**: extract `content_block.type === "thinking"` blocks.
-- **ClaudeCode**: extract thinking deltas from the Anthropic SDK.
+- **OpenAI / Groq / DeepSeek / Ollama**: read `delta.reasoning_content` or `delta.reasoning` (stream) and `message.reasoning_content` (non-stream). Use `extra_body` for provider-specific parameters.
+- **Claude**: extracts `content_block.type === "thinking"` and `signature_delta` from the Anthropic SSE stream.
 
-Thinking content is emitted as `StreamChunk { role: "thinking" }` but is **not** persisted in the thread or re-sent to the model.
-
-> **Note for Claude (extended thinking):** Anthropic only emits `thinking` blocks when the request explicitly enables it via `thinking: { type: "enabled", budget_tokens: <n> }`. The built-in `Claude` provider passes through whatever you set in its `headers`/options; if you need extended thinking, configure your provider call accordingly. Without that flag the model returns no thinking content.
+Thinking content is emitted as `StreamChunk { role: "thinking" }` to the consumer. The Agent persists `thinking` and `thinking_signature` on the stored `assistant` message for providers that support it (Claude).
 
 ## Multi-Provider Setup
 

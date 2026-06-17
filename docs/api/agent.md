@@ -397,11 +397,18 @@ Dual-mode provider function. Without `stream: true` returns a `ChatCompletionRes
 
 ```typescript
 type ProviderChunk =
-  | { type: "text_delta"; content: string }
-  | { type: "thinking_delta"; content: string }
+  | { type: "text_delta";      content: string }
+  | { type: "thinking_delta";  content: string }
+  | { type: "signature_delta"; content: string }
   | { type: "tool_call_delta"; index: number; id?: string; name?: string; arguments_delta?: string }
-  | { type: "finish"; finish_reason: string };
+  | { type: "finish";          finish_reason: string };
 ```
+
+- `text_delta` — incremental text token from the model.
+- `thinking_delta` — incremental reasoning token (Claude extended thinking, DeepSeek R1, Ollama `think`, etc.).
+- `signature_delta` — cryptographic signature of the thinking block (Anthropic-specific). The Agent accumulates this and stores it as `thinking_signature` on the persisted `assistant` message.
+- `tool_call_delta` — partial tool call (index, id, name, arguments fragment).
+- `finish` — signals end of generation.
 
 ### StreamChunk
 
