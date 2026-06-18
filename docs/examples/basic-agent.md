@@ -13,7 +13,7 @@ A basic agent is the simplest form of an AI-powered assistant. It combines:
 ## Complete Example
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Rule } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 // Initialize OpenAI client
@@ -35,8 +35,7 @@ const openai_provider = async (ctx) => {
 
 // Create basic agent
 const chatbot = new Agent({
-  name: "Simple_Chatbot",
-  description: "A friendly conversational assistant",
+  rules: [new Rule("A friendly conversational assistant.")],
   providers: [openai_provider]
 });
 
@@ -102,8 +101,7 @@ The provider function receives the full agent context and returns an OpenAI-comp
 
 ```typescript
 const chatbot = new Agent({
-  name: "Simple_Chatbot",
-  description: "A friendly conversational assistant",
+  rules: [new Rule("A friendly conversational assistant.")],
   providers: [openai_provider]
 });
 ```
@@ -200,8 +198,7 @@ const openai_provider = async (ctx) => {
 import { Message } from '@arcaelas/agent';
 
 const chatbot = new Agent({
-  name: "Simple_Chatbot",
-  description: "A friendly conversational assistant",
+  rules: [new Rule("A friendly conversational assistant.")],
   messages: [
     new Message({
       role: "system",

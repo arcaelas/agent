@@ -4,7 +4,59 @@ Guide for upgrading between versions.
 
 ## Migrating to v2.x
 
-v2 introduces multimodal messages, extended thinking, the `Ollama` provider, and a reworked `Claude` provider. Most code keeps working — the breaking changes are scoped.
+v2 introduces multimodal messages, extended thinking, the `Ollama` provider, a reworked `Claude` provider, and tool lifecycle hooks. Most code keeps working — the breaking changes are scoped.
+
+### Renamed (breaking): `AgentOptions` → `IAgent`
+
+The Agent options interface was renamed. Only type imports are affected; the runtime shape is the same (minus `name`/`description`, see below).
+
+**Before** (v1.x):
+```typescript
+import type { AgentOptions } from '@arcaelas/agent';
+const opts: AgentOptions = { providers: [...] };
+```
+
+**After** (v2.x):
+```typescript
+import type { IAgent } from '@arcaelas/agent';
+const opts: IAgent = { providers: [...] };
+```
+
+### Removed (breaking): `Agent` `name` and `description` options
+
+`Agent` no longer accepts `name` or `description`. Behavior that used `description` should be passed as a `Rule`.
+
+**Before** (v1.x):
+```typescript
+const agent = new Agent({ name: "Bot", description: "Helpful assistant", providers: [...] });
+```
+
+**After** (v2.x):
+```typescript
+import { Agent, Rule } from '@arcaelas/agent';
+const agent = new Agent({ rules: [new Rule("You are a helpful assistant.")], providers: [...] });
+```
+
+### New: tool lifecycle hooks (`PreFunc` / `PostFunc`)
+
+`IAgent.hooks` lets you run logic around every tool execution, in both `call()` and `stream()`. Each array is a chainable pipe.
+
+```typescript
+const agent = new Agent({
+  providers: [provider],
+  tools: [search_tool],
+  hooks: {
+    // Runs before the tool. ctx and tool are mutable instances.
+    PreFunc: [(ctx, tool, params) => {
+      console.log(`Calling ${tool.name} with`, params);
+    }],
+    // Runs after the tool. Its return value replaces the response downstream.
+    PostFunc: [(ctx, tool, params, response) => {
+      return typeof response === "string" ? response.trim() : response;
+    }],
+  },
+});
+```
 
 ### Removed (breaking): `ClaudeCode` provider
 
@@ -156,7 +208,8 @@ import { AgentTool, AskTool, ChoiceTool, SleepTool, TimeTool, RemoteTool } from 
 
 ## Version History
 
-- **v2.1.x** - Current: `Ollama` provider, multimodal `Message.content`, extended thinking with signature, reworked `Claude` provider; removed `ClaudeCode`
+- **v2.3.x** - Current: tool lifecycle hooks (`PreFunc`/`PostFunc`); `AgentOptions` renamed to `IAgent`; removed `Agent` `name`/`description`
+- **v2.1.x** - `Ollama` provider, multimodal `Message.content`, extended thinking with signature, reworked `Claude` provider; removed `ClaudeCode`
 - **v2.0.x** - `Message.content` widened to `string | ContentBlock[]`
 - **v1.8.x** - branches, stream(), built-in tools, thinking support
 - **v1.7.x** - Built-in provider classes

@@ -9,7 +9,6 @@ Internal design and system architecture of @arcaelas/agent.
 │             Agent Layer                  │
 │  ┌─────────────────────────────────┐   │
 │  │  Agent (Orchestrator)            │   │
-│  │  - name, description             │   │
 │  │  - providers (AI services)       │   │
 │  │  - call() method                 │   │
 │  └───────────┬─────────────────────┘   │

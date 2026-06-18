@@ -11,12 +11,12 @@ Reuse contexts instead of creating new ones:
 ```typescript
 // ✅ Good: Reuse context
 const shared_context = new Context({ metadata: base_metadata });
-const agent1 = new Agent({ name: "A1", contexts: shared_context });
-const agent2 = new Agent({ name: "A2", contexts: shared_context });
+const agent1 = new Agent({ contexts: shared_context });
+const agent2 = new Agent({ contexts: shared_context });
 
 // ❌ Bad: Recreate context
-const agent1 = new Agent({ name: "A1", metadata: base_metadata });
-const agent2 = new Agent({ name: "A2", metadata: base_metadata });
+const agent1 = new Agent({ metadata: base_metadata });
+const agent2 = new Agent({ metadata: base_metadata });
 ```
 
 ### 2. Provider Caching

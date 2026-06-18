@@ -14,7 +14,7 @@ Tools extend agent capabilities by providing access to external data, APIs, and 
 ### Basic Weather Tool
 
 ```typescript
-import { Agent, Tool } from '@arcaelas/agent';
+import { Agent, Rule, Tool } from '@arcaelas/agent';
 
 // Simple tool with string input
 const weather_tool = new Tool('get_weather', (agent, input: string) => {
@@ -24,8 +24,7 @@ const weather_tool = new Tool('get_weather', (agent, input: string) => {
 });
 
 const agent = new Agent({
-  name: "Weather_Agent",
-  description: "Helpful weather assistant",
+  rules: [new Rule("Helpful weather assistant.")],
   tools: [weather_tool],
   providers: [openai_provider]
 });
@@ -159,7 +158,7 @@ const calculator = new Tool('calculate', {
 ## Complete Agent with Custom Tools
 
 ```typescript
-import { Agent, Tool } from '@arcaelas/agent';
+import { Agent, Rule, Tool } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -255,8 +254,7 @@ const openai_provider = async (ctx) => {
 
 // Create agent with custom tools
 const assistant = new Agent({
-  name: "Multi_Tool_Assistant",
-  description: "Helpful assistant with weather and news capabilities",
+  rules: [new Rule("Helpful assistant with weather and news capabilities.")],
   tools: [weather_tool, news_tool],
   providers: [openai_provider]
 });
@@ -486,7 +484,7 @@ const http_tool = new RemoteTool("fetch_user", {
 });
 
 const agent = new Agent({
-  description: "Data assistant",
+  rules: [new Rule("Data assistant.")],
   tools: [http_tool],
   providers: [openai_provider],
 });

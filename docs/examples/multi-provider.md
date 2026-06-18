@@ -15,7 +15,7 @@ Key benefits:
 ## Complete Example
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Rule } from '@arcaelas/agent';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import Groq from 'groq-sdk';
@@ -108,8 +108,7 @@ const groq_provider: Provider = async (ctx: Context) => {
 
 // Create resilient agent with failover
 const resilient_agent = new Agent({
-  name: "Resilient_Assistant",
-  description: "High-availability AI assistant with automatic failover",
+  rules: [new Rule("High-availability AI assistant with automatic failover.")],
   providers: [
     openai_provider,      // Primary (best quality)
     anthropic_provider,   // Backup 1 (reliable alternative)
@@ -177,8 +176,7 @@ Prioritize quality, use cheaper options as backup:
 
 ```typescript
 const quality_first_agent = new Agent({
-  name: "Premium_Agent",
-  description: "Prefers best quality responses",
+  rules: [new Rule("Prefers best quality responses.")],
   providers: [
     gpt4_provider,           // Expensive but best
     claude3_opus_provider,   // Also premium
@@ -193,8 +191,7 @@ Prioritize fast responses:
 
 ```typescript
 const speed_first_agent = new Agent({
-  name: "Fast_Agent",
-  description: "Optimized for quick responses",
+  rules: [new Rule("Optimized for quick responses.")],
   providers: [
     groq_provider,           // Very fast
     gpt35_turbo_provider,    // Also fast
@@ -209,8 +206,7 @@ Balance cost and quality:
 
 ```typescript
 const cost_optimized_agent = new Agent({
-  name: "Budget_Agent",
-  description: "Cost-effective AI assistant",
+  rules: [new Rule("Cost-effective AI assistant.")],
   providers: [
     groq_provider,           // Free
     gpt35_turbo_provider,    // Cheap
@@ -225,8 +221,7 @@ Multiple instances of same provider for load distribution:
 
 ```typescript
 const redundant_agent = new Agent({
-  name: "Redundant_Agent",
-  description: "High availability through redundancy",
+  rules: [new Rule("High availability through redundancy.")],
   providers: [
     openai_instance_1,
     openai_instance_2,
@@ -289,8 +284,7 @@ const failing_provider: Provider = async (ctx: Context) => {
 
 // Test agent with simulated failure
 const test_agent = new Agent({
-  name: "Test_Agent",
-  description: "Testing failover behavior",
+  rules: [new Rule("Testing failover behavior.")],
   providers: [
     failing_provider,  // Always fails
     openai_provider    // Should take over

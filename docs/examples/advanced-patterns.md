@@ -7,23 +7,22 @@ Complex multi-agent workflows and architectural patterns for production systems.
 Execute agents sequentially, passing results between them:
 
 ```typescript
+import { Agent, Rule, Tool } from '@arcaelas/agent';
+
 const research_agent = new Agent({
-  name: "Researcher",
-  description: "Information gathering specialist",
+  rules: [new Rule("Information gathering specialist.")],
   tools: [search_tool, scrape_tool],
   providers: [openai_provider]
 });
 
 const analyzer_agent = new Agent({
-  name: "Analyzer",
-  description: "Data analysis specialist",
+  rules: [new Rule("Data analysis specialist.")],
   tools: [stats_tool, chart_tool],
   providers: [openai_provider]
 });
 
 const writer_agent = new Agent({
-  name: "Writer",
-  description: "Content writing specialist",
+  rules: [new Rule("Content writing specialist.")],
   tools: [grammar_tool, style_tool],
   providers: [openai_provider]
 });
@@ -92,8 +91,7 @@ One agent coordinates multiple specialized agents:
 
 ```typescript
 const supervisor = new Agent({
-  name: "Supervisor",
-  description: "Coordinates specialized agents for complex tasks",
+  rules: [new Rule("Coordinates specialized agents for complex tasks.")],
   tools: [
     new Tool('delegate_to_researcher', async (agent, { query }) => {
       const [msgs, ok] = await research_agent.call(query);
@@ -130,8 +128,7 @@ class StatefulAgent {
 
   constructor() {
     this.agent = new Agent({
-      name: "Stateful_Agent",
-      description: "Agent with conversation state management",
+      rules: [new Rule("Agent with conversation state management.")],
       providers: [openai_provider]
     });
   }
@@ -239,8 +236,7 @@ const web_research_tool = new Tool('research_url', async (agent, { url }) => {
 });
 
 const research_agent = new Agent({
-  name: "Web_Researcher",
-  description: "Researches and summarizes web content",
+  rules: [new Rule("Researches and summarizes web content.")],
   tools: [web_research_tool],
   providers: [openai_provider]
 });
@@ -266,8 +262,7 @@ class PersistentAgent {
   constructor(db: Database) {
     this.db = db;
     this.agent = new Agent({
-      name: "Persistent_Agent",
-      description: "Agent with conversation persistence",
+      rules: [new Rule("Agent with conversation persistence.")],
       providers: [openai_provider]
     });
   }
@@ -332,8 +327,7 @@ class ThrottledProvider {
 
 const throttled = new ThrottledProvider();
 const agent = new Agent({
-  name: "Rate_Limited_Agent",
-  description: "Agent with rate limiting",
+  rules: [new Rule("Agent with rate limiting.")],
   providers: [throttled.provider.bind(throttled)]
 });
 ```

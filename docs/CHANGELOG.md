@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## \[2.3.0]
+
+### Added
+
+- Tool lifecycle hooks via `IAgent.hooks`: `PreFunc` runs before each tool executes (receives `ctx`, `tool`, `params`), and `PostFunc` runs after (receives `ctx`, `tool`, `params`, `response`). Both are chainable pipes — `PostFunc`'s return value replaces the response passed downstream. Hooks run in both `call()` and `stream()`.
+
+### Changed (breaking)
+
+- `AgentOptions` interface renamed to **`IAgent`**. Update type imports accordingly.
+- `Agent` no longer accepts `name` or `description` options. Pass behavior via `rules` instead (a `description`-style string can be supplied as a `Rule`).
+
 ## \[2.1.0]
 
 ### Added

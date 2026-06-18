@@ -39,8 +39,7 @@ const sales_context = new Context({
 
 // Agent using child context
 const sales_agent = new Agent({
-  name: "Sales_Agent",
-  description: "EMEA sales specialist",
+  rules: [new Rule("EMEA sales specialist.")],
   contexts: sales_context,
   providers: [openai_provider]
 });
@@ -82,8 +81,7 @@ const backend_team_context = new Context({
 
 // Agent at deepest level
 const backend_agent = new Agent({
-  name: "Backend_Engineer_Agent",
-  description: "Backend engineering specialist",
+  rules: [new Rule("Backend engineering specialist.")],
   contexts: backend_team_context,
   providers: [openai_provider]
 });
@@ -111,8 +109,6 @@ const child = new Context({
 });
 
 const agent = new Agent({
-  name: "Custom_Agent",
-  description: "Agent with overridden theme",
   contexts: child,
   providers: [openai_provider]
 });
@@ -142,8 +138,6 @@ const child_ctx = new Context({
 });
 
 const agent = new Agent({
-  name: "Tool_Agent",
-  description: "Agent with deduplicated tools",
   contexts: child_ctx,
   providers: [openai_provider]
 });
@@ -204,16 +198,14 @@ const emea_support = new Context({
 
 // Create specialized agents
 const sales_agent_uk = new Agent({
-  name: "UK_Sales_Agent",
-  description: "Sales agent for UK market",
+  rules: [new Rule("Sales agent for UK market.")],
   contexts: emea_sales,
   metadata: new Metadata().set("country", "UK"),
   providers: [openai_provider]
 });
 
 const support_agent_germany = new Agent({
-  name: "Germany_Support_Agent",
-  description: "Support agent for German customers",
+  rules: [new Rule("Support agent for German customers.")],
   contexts: emea_support,
   metadata: new Metadata().set("country", "Germany").set("language", "de"),
   providers: [openai_provider]
@@ -254,8 +246,7 @@ function create_personalized_agent(user_profile) {
   const user_context = create_user_context(user_profile);
 
   return new Agent({
-    name: `Agent_${user_profile.id}`,
-    description: `Personalized agent for ${user_profile.name}`,
+    rules: [new Rule(`Personalized agent for ${user_profile.name}.`)],
     contexts: user_context,
     providers: [openai_provider]
   });

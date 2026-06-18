@@ -6,7 +6,7 @@ Welcome to **@arcaelas/agent** - a production-ready TypeScript library for build
 
 @arcaelas/agent enables you to create AI agents that scale from simple chatbots to complex organizational workflows through:
 
-- **🔄 Multi-Provider Support** - Automatic failover between OpenAI, Anthropic, Groq, and custom APIs
+- **🔄 Multi-Provider Support** - Automatic failover between OpenAI, Anthropic, Groq, Ollama, and custom APIs
 - **🏗️ Reactive Architecture** - Hierarchical context inheritance with automatic state management
 - **🛠️ Tool Ecosystem** - Built-in HTTP tools and seamless custom function integration
 - **💎 Full TypeScript** - Complete type safety with discriminated unions and generics
@@ -22,7 +22,7 @@ npm install @arcaelas/agent
 ### Your First Agent
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Rule } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -30,8 +30,7 @@ const openai = new OpenAI({
 });
 
 const assistant = new Agent({
-  name: "Personal_Assistant",
-  description: "Helpful assistant for daily tasks",
+  rules: [new Rule("Helpful assistant for daily tasks.")],
   providers: [
     async (ctx) => {
       return await openai.chat.completions.create({
@@ -58,10 +57,11 @@ Central orchestrator combining identity, behavior, tools, and AI providers.
 
 ```typescript
 const agent = new Agent({
-  name: "Support_Agent",
-  description: "Customer support specialist",
+  rules: [
+    new Rule("Customer support specialist."),
+    professional_rule,
+  ],
   tools: [search_tool, database_tool],
-  rules: [professional_rule],
   providers: [openai_provider]
 });
 ```

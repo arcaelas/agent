@@ -32,7 +32,7 @@ Create a file `my-first-agent.ts`:
 
 ```typescript
 import 'dotenv/config';
-import { Agent, OpenAI } from '@arcaelas/agent';
+import { Agent, Rule, OpenAI } from '@arcaelas/agent';
 
 // Create the provider — no external SDK needed
 const provider = new OpenAI({
@@ -42,8 +42,7 @@ const provider = new OpenAI({
 
 // Create the agent
 const assistant = new Agent({
-  name: "Personal_Assistant",
-  description: "A helpful assistant that answers questions and provides information",
+  rules: [new Rule("A helpful assistant that answers questions and provides information.")],
   providers: [provider],
 });
 
@@ -86,8 +85,7 @@ const time_tool = new Tool("get_current_time", async (agent) => {
 
 // Create agent with the tool
 const assistant = new Agent({
-  name: "Time_Assistant",
-  description: "Assistant that can tell the current time",
+  rules: [new Rule("Assistant that can tell the current time.")],
   tools: [time_tool],
   providers: [
     new OpenAI({
@@ -115,9 +113,8 @@ Rules define how your agent should behave:
 import { Agent, Rule, OpenAI } from '@arcaelas/agent';
 
 const assistant = new Agent({
-  name: "Professional_Assistant",
-  description: "Professional customer support agent",
   rules: [
+    new Rule("Professional customer support agent."),
     new Rule("Always maintain a professional and courteous tone"),
     new Rule("Never share confidential information"),
     new Rule("If unsure, admit it rather than making up information")
@@ -134,11 +131,10 @@ Add automatic failover between providers. All providers are built-in — no
 external SDKs needed:
 
 ```typescript
-import { Agent, OpenAI, Claude, Groq } from '@arcaelas/agent';
+import { Agent, Rule, OpenAI, Claude, Groq } from '@arcaelas/agent';
 
 const resilient_agent = new Agent({
-  name: "Resilient_Agent",
-  description: "High-availability assistant",
+  rules: [new Rule("High-availability assistant.")],
   providers: [
     // Primary: OpenAI
     new OpenAI({
@@ -190,8 +186,7 @@ const support_context = new Context({
 
 // Create agent with inherited context
 const support_agent = new Agent({
-  name: "Support_Agent",
-  description: "Customer support specialist",
+  rules: [new Rule("Customer support specialist.")],
   contexts: support_context,  // Has access to everything
   providers: [
     new OpenAI({ api_key: process.env.OPENAI_API_KEY!, model: "gpt-4o-mini" }),
@@ -231,20 +226,18 @@ const time_tool = new Tool("get_time", async (agent) => {
 
 // Create the agent
 const assistant = new Agent({
-  name: "Smart_Assistant",
-  description: "Intelligent assistant with weather and time capabilities",
+  rules: [
+    new Rule("Intelligent assistant with weather and time capabilities."),
+    new Rule("Be concise and helpful"),
+    new Rule("Use tools when appropriate"),
+    new Rule("Admit when you don't know something")
+  ],
 
   metadata: new Metadata()
     .set("version", "1.0")
     .set("environment", "production"),
 
   tools: [weather_tool, time_tool],
-
-  rules: [
-    new Rule("Be concise and helpful"),
-    new Rule("Use tools when appropriate"),
-    new Rule("Admit when you don't know something")
-  ],
 
   providers: [
     new OpenAI({

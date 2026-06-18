@@ -5,37 +5,33 @@ The `Agent` class is the central orchestrator that coordinates AI providers, too
 ## Constructor
 
 ```typescript
-new Agent(options: AgentOptions)
+new Agent(options: IAgent)
 ```
 
 Creates a new Agent instance with the specified configuration.
 
-### AgentOptions
+### IAgent
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `name` | `string` | No | Deprecated. Not used internally. |
-| `description` | `string` | No | Injected as a `Rule` into the agent's context. Defines the personality and purpose. |
 | `metadata` | `Metadata \| Metadata[]` | No | Initial metadata |
 | `tools` | `Tool \| Tool[]` | No | Available tools |
 | `rules` | `Rule \| Rule[]` | No | Behavioral rules |
 | `messages` | `Message \| Message[]` | No | Conversation history |
 | `contexts` | `Context \| Context[]` | No | Parent contexts for inheritance |
 | `providers` | `Provider[]` | No | AI model provider functions |
-| `branches` | `Array<AgentOptions \| Agent \| string>` | No | Sub-agents that build a "thinking" context before the main turn |
-
-> **Note:** `name` and `description` are declared as `readonly` properties but are never assigned internally — they remain `undefined` at runtime. `description` is converted into a `Rule` that is passed to the internal Context; it does not appear as a property value.
+| `branches` | `Array<IAgent \| Agent \| string>` | No | Sub-agents that build a "thinking" context before the main turn |
 
 ### branches
 
-The `branches` option accepts an array of sub-agents (as `Agent` instances, `AgentOptions` objects, or description strings). Before each `call()` or `stream()` turn, the agent runs the branches sequentially. Each branch inherits the current message thread plus the accumulated thinking from previous branches as a `system` message. The last branch's assistant response is injected as an ephemeral `system` message immediately before the user prompt, then removed after the turn ends (it is never persisted in `messages`).
+The `branches` option accepts an array of sub-agents (as `Agent` instances, `IAgent` objects, or description strings). Before each `call()` or `stream()` turn, the agent runs the branches sequentially. Each branch inherits the current message thread plus the accumulated thinking from previous branches as a `system` message. The last branch's assistant response is injected as an ephemeral `system` message immediately before the user prompt, then removed after the turn ends (it is never persisted in `messages`).
 
 ```typescript
 const agent = new Agent({
-  description: "Final answer agent",
+  rules: [new Rule("Final answer agent.")],
   branches: [
     "Think step by step about the problem before answering.",
-    new Agent({ description: "Verify the reasoning above.", providers: [verifier_provider] }),
+    new Agent({ rules: [new Rule("Verify the reasoning above.")], providers: [verifier_provider] }),
   ],
   providers: [main_provider],
 });
@@ -47,10 +43,12 @@ const agent = new Agent({
 import { Agent, Tool, Rule } from '@arcaelas/agent';
 
 const agent = new Agent({
-  description: "Professional customer support specialist",
   metadata: new Metadata().set("version", "1.0"),
   tools: [search_tool, ticket_tool],
-  rules: [new Rule("Be professional and courteous")],
+  rules: [
+    new Rule("Professional customer support specialist."),
+    new Rule("Be professional and courteous"),
+  ],
   providers: [openai_provider, claude_provider]
 });
 ```
@@ -71,7 +69,7 @@ Always `undefined` at runtime. Kept for source-level compatibility only. Do not 
 readonly description?: string
 ```
 
-Always `undefined` at runtime. The description string from `AgentOptions` is converted to a `Rule` and added to the internal Context; it is not stored as a property. Do not rely on this value.
+Always `undefined` at runtime. Not stored as a property.
 
 ### `metadata`
 
@@ -247,12 +245,11 @@ for await (const chunk of agent.stream("What time is it in Tokyo?")) {
 ### Basic Usage
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Rule } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 const agent = new Agent({
-  name: "Simple_Agent",
-  description: "Basic conversational agent",
+  rules: [new Rule("Basic conversational agent.")],
   providers: [
     async (ctx) => {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -270,7 +267,7 @@ const [messages, success] = await agent.call("Hello!");
 ### With Tools
 
 ```typescript
-import { Agent, Tool } from '@arcaelas/agent';
+import { Agent, Rule, Tool } from '@arcaelas/agent';
 
 const weather_tool = new Tool("get_weather", {
   description: "Get current weather",
@@ -279,8 +276,7 @@ const weather_tool = new Tool("get_weather", {
 });
 
 const agent = new Agent({
-  name: "Weather_Agent",
-  description: "Agent with weather capabilities",
+  rules: [new Rule("Agent with weather capabilities.")],
   tools: [weather_tool],
   providers: [
     async (ctx) => {
@@ -308,8 +304,7 @@ await agent.call("What's the weather in London?");
 
 ```typescript
 const agent = new Agent({
-  name: "Resilient_Agent",
-  description: "High-availability agent",
+  rules: [new Rule("High-availability agent.")],
   providers: [
     // Primary: OpenAI
     async (ctx) => {
@@ -367,8 +362,7 @@ const company_context = new Context({
 
 // Specialized agent
 const sales_agent = new Agent({
-  name: "Sales_Agent",
-  description: "Sales specialist",
+  rules: [new Rule("Sales specialist.")],
   contexts: company_context,  // Inherits company config
   metadata: new Metadata().set("department", "Sales"),
   tools: [crm_tool, quote_tool],
@@ -471,3 +465,10 @@ if (agent.messages.length > 100) {
 - [Providers API](providers.md)
 - [Getting Started Guide](../guides/getting-started.md)
 - [Core Concepts](../guides/core-concepts.md)
+essage.md)
+- [Providers API](providers.md)
+- [Getting Started Guide](../guides/getting-started.md)
+- [Core Concepts](../guides/core-concepts.md)
+
+d)
+

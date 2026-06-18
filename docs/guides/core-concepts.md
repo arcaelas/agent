@@ -29,10 +29,11 @@ graph TB
 
 ```typescript
 const agent = new Agent({
-  name: "Customer_Support",
-  description: "Expert customer support specialist",
+  rules: [
+    new Rule("Expert customer support specialist."),
+    professional_rule,
+  ],
   tools: [search_tool, ticket_tool],
-  rules: [professional_rule],
   providers: [openai_provider, claude_provider]
 });
 ```
@@ -214,8 +215,7 @@ const openai_provider = async (ctx) => {
 
 ```typescript
 const agent = new Agent({
-  name: "Resilient_Agent",
-  description: "High-availability agent",
+  rules: [new Rule("High-availability agent.")],
   providers: [
     openai_provider,    // Primary
     claude_provider,    // Backup 1
@@ -334,14 +334,12 @@ Create specialized agents for different tasks:
 
 ```typescript
 const search_agent = new Agent({
-  name: "Search_Agent",
-  description: "Expert in searching and finding information",
+  rules: [new Rule("Expert in searching and finding information.")],
   tools: [web_search, doc_search, db_search]
 });
 
 const writer_agent = new Agent({
-  name: "Writer_Agent",
-  description: "Expert in writing and content creation",
+  rules: [new Rule("Expert in writing and content creation.")],
   tools: [grammar_check, style_check, plagiarism_check]
 });
 ```
@@ -378,7 +376,7 @@ const analytics_context = new Context({ ... });
 
 const agent = new Agent({
   contexts: [auth_context, logging_context, analytics_context],
-  ...
+  // ...
 });
 ```
 

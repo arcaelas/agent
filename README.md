@@ -145,7 +145,7 @@ Create your first AI agent in **3 simple steps**:
 #### Step 1: Import and Setup
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Rule } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 // Initialize your AI provider
@@ -159,8 +159,7 @@ const openai = new OpenAI({
 
 ```typescript
 const assistant = new Agent({
-  name: "Personal_Assistant",
-  description: "Helpful assistant for daily tasks and questions",
+  rules: [new Rule("Helpful assistant for daily tasks and questions.")],
   providers: [
     async (ctx) => {
       return await openai.chat.completions.create({
@@ -194,7 +193,7 @@ if (success) {
 Test your installation with this complete example:
 
 ```typescript
-import { Agent, Tool } from '@arcaelas/agent';
+import { Agent, Rule, Tool } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 // Create a simple time tool
@@ -204,8 +203,7 @@ const time_tool = new Tool("get_current_time", async (agent) => {
 
 // Create agent with tool
 const agent = new Agent({
-  name: "Time_Assistant",
-  description: "Assistant that can tell the current time",
+  rules: [new Rule("Assistant that can tell the current time.")],
   tools: [time_tool],
   providers: [
     async (ctx) => {
@@ -261,13 +259,12 @@ Response: The current time is [current date and time].
 Perfect for getting started with basic conversational AI:
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Rule } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 // Create a simple chatbot
 const chatbot = new Agent({
-  name: "Simple_Chatbot",
-  description: "Friendly assistant for basic questions and conversations",
+  rules: [new Rule("Friendly assistant for basic questions and conversations.")],
   providers: [
     async (ctx) => {
       const openai = new OpenAI({
@@ -296,7 +293,7 @@ console.log("Bot:", conversation[conversation.length - 1].content);
 Production-ready setup with automatic failover and tools:
 
 ```typescript
-import { Agent, Tool, TimeTool } from '@arcaelas/agent';
+import { Agent, Rule, Tool, TimeTool } from '@arcaelas/agent';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -318,8 +315,7 @@ const time_tool = new TimeTool({ time_zone: "America/New_York" });
 
 // Multi-provider agent with tools
 const advanced_agent = new Agent({
-  name: "Advanced_Assistant",
-  description: "Intelligent assistant with weather and time capabilities",
+  rules: [new Rule("Intelligent assistant with weather and time capabilities.")],
   tools: [weather_tool, time_tool],
   providers: [
     // Primary: OpenAI GPT-4
@@ -425,8 +421,7 @@ const sales_context = new Context({
 
 // Specialized sales agent
 const sales_agent = new Agent({
-  name: "Sales_Specialist",
-  description: "Expert sales representative with CRM access and pricing tools",
+  rules: [new Rule("Expert sales representative with CRM access and pricing tools.")],
   contexts: sales_context, // Inherits complete hierarchy
   providers: [
     async (ctx) => {
@@ -504,29 +499,23 @@ The **Agent** is the central orchestrator that combines identity, behavior, tool
 
 ### Constructor
 ```typescript
-new Agent(options: AgentOptions)
+new Agent(options: IAgent)
 ```
 
-### AgentOptions Interface
+### IAgent Interface
 ```typescript
-interface AgentOptions {
-  name?: string;                          // Deprecated — unused internally
-  description?: string;                   // Injected as a Rule into the agent's context
+interface IAgent {
   metadata?: Metadata | Metadata[];      // Initial metadata
   tools?: Tool | Tool[];                  // Available tools
   rules?: Rule | Rule[];                  // Behavioral rules
   messages?: Message | Message[];         // Conversation history
   contexts?: Context | Context[];         // Parent contexts for inheritance
   providers?: Provider[];                 // AI model provider functions
-  branches?: Array<AgentOptions | Agent | string>; // Sub-agent pipeline for pre-turn thinking
+  branches?: Array<IAgent | Agent | string>; // Sub-agent pipeline for pre-turn thinking
 }
 ```
 
-> `name` and `description` are `readonly` but never assigned at runtime (always `undefined`). `description` is converted to a `Rule` added to the internal Context.
-
 ### Properties
-- `readonly name?: string` - Deprecated, always `undefined`
-- `readonly description?: string` - Deprecated, always `undefined`
 - `metadata: Metadata` - Reactive metadata with inheritance
 - `rules: Rule[]` - Combined inherited and local rules
 - `tools: Tool[]` - Deduplicated tools by name (latest wins)
@@ -551,8 +540,7 @@ Streams a conversation turn. Yields `StreamChunk` objects: `{ role: "assistant" 
 ### Example
 ```typescript
 const agent = new Agent({
-  name: "Assistant",
-  description: "Helpful AI assistant",
+  rules: [new Rule("Helpful AI assistant.")],
   providers: [
     async (ctx) => {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -812,8 +800,7 @@ const weather_api = new RemoteTool("get_weather", {
 
 // Usage in agent
 const agent = new Agent({
-  name: "Weather_Assistant",
-  description: "Assistant with weather capabilities",
+  rules: [new Rule("Assistant with weather capabilities.")],
   tools: [weather_api]
 });
 ```
@@ -855,8 +842,7 @@ const ny_time = new TimeTool({ time_zone: "America/New_York" });
 
 // Usage in agent
 const global_agent = new Agent({
-  name: "Global_Assistant",
-  description: "Assistant with multi-timezone awareness",
+  rules: [new Rule("Assistant with multi-timezone awareness.")],
   tools: [local_time, tokyo_time, london_time, ny_time]
 });
 
@@ -923,7 +909,7 @@ const openai_provider: Provider = async (ctx) => {
 };
 
 const resilient_agent = new Agent({
-  description: "High-availability assistant with automatic failover",
+  rules: [new Rule("High-availability assistant with automatic failover.")],
   providers: [openai_provider, claude_provider]
 });
 ```
@@ -1087,8 +1073,7 @@ const agent = new Agent({
 
 // After (v2.x)
 const agent = new Agent({
-  name: "Assistant",
-  description: "Helpful and professional assistant",
+  rules: [new Rule("Helpful and professional assistant.")],
   tools: [
     new Tool("calculator", {
       description: "Perform mathematical calculations",
@@ -1188,14 +1173,13 @@ npm run format
 #### Testing Guidelines
 ```typescript
 // Example test structure
-import { Agent, Tool } from '../src';
+import { Agent, Rule, Tool } from '../src';
 
 describe('Agent Core Functionality', () => {
   test('should create agent with tools', async () => {
     const test_tool = new Tool("test", async (agent) => "test result");
     const agent = new Agent({
-      name: "Test_Agent",
-      description: "Test agent",
+      rules: [new Rule("Test agent.")],
       tools: [test_tool]
     });
 
@@ -1301,7 +1285,11 @@ Help others and improve the ecosystem:
 
 ### Recent Releases
 
-#### v2.1.0 (Current)
+#### v2.3.0 (Current)
+- ✨ **New**: Tool lifecycle hooks — `PreFunc` / `PostFunc` in `IAgent.hooks`, chainable pipes running before/after each tool in both `call()` and `stream()`
+- 🗑️ **Removed (breaking)**: `AgentOptions` renamed to `IAgent`; `Agent` no longer accepts `name` / `description` (use `rules` instead)
+
+#### v2.1.0
 - ✨ **New**: `Ollama` provider — run local open-source models via Ollama, with `think` and `num_ctx` options
 - ✨ **New**: Multimodal `Message.content` — `string | ContentBlock[]` supporting `TextBlock`, `ImageBlock`, `AudioBlock`, `DocumentBlock`
 - ✨ **New**: Extended thinking on `Message` — `thinking` and `thinking_signature` fields persisted across turns (Anthropic signature reinjected automatically)

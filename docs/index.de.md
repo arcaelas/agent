@@ -6,7 +6,7 @@ Willkommen zu **@arcaelas/agent** - einer produktionsreifen TypeScript-Bibliothe
 
 @arcaelas/agent ermöglicht es Ihnen, KI-Agenten zu erstellen, die von einfachen Chatbots bis zu komplexen Unternehmens-Workflows skalieren durch:
 
-- **🔄 Multi-Anbieter-Unterstützung** - Automatische Ausfallsicherung zwischen OpenAI, Anthropic, Groq und benutzerdefinierten APIs
+- **🔄 Multi-Anbieter-Unterstützung** - Automatische Ausfallsicherung zwischen OpenAI, Anthropic, Groq, Ollama und benutzerdefinierten APIs
 - **🏗️ Reaktive Architektur** - Hierarchische Kontextvererbung mit automatischer Zustandsverwaltung
 - **🛠️ Werkzeug-Ökosystem** - Integrierte HTTP-Werkzeuge und nahtlose Integration benutzerdefinierter Funktionen
 - **💎 Vollständiges TypeScript** - Vollständige Typsicherheit mit diskriminierten Unions und Generics
@@ -22,7 +22,7 @@ npm install @arcaelas/agent
 ### Ihr erster Agent
 
 ```typescript
-import { Agent } from '@arcaelas/agent';
+import { Agent, Rule } from '@arcaelas/agent';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -30,8 +30,7 @@ const openai = new OpenAI({
 });
 
 const assistant = new Agent({
-  name: "Persönlicher_Assistent",
-  description: "Hilfreicher Assistent für tägliche Aufgaben",
+  rules: [new Rule("Hilfreicher Assistent für tägliche Aufgaben.")],
   providers: [
     async (ctx) => {
       return await openai.chat.completions.create({
@@ -58,10 +57,11 @@ Zentraler Orchestrator, der Identität, Verhalten, Werkzeuge und KI-Anbieter kom
 
 ```typescript
 const agent = new Agent({
-  name: "Support_Agent",
-  description: "Kundensupport-Spezialist",
+  rules: [
+    new Rule("Kundensupport-Spezialist."),
+    professional_rule,
+  ],
   tools: [search_tool, database_tool],
-  rules: [professional_rule],
   providers: [openai_provider]
 });
 ```
