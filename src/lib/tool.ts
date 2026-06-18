@@ -33,7 +33,7 @@
  */
 
 import { z } from "zod";
-import Agent from "./agent";
+import Agent from "~/lib/agent";
 
 /**
  * @description

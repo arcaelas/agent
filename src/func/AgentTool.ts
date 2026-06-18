@@ -26,10 +26,8 @@ export interface AgentToolOptions {
 export default class AgentTool extends Tool {
   constructor(options: AgentToolOptions) {
     const subAgent = new Agent({
-      name: options.name,
-      description: options.description,
       providers: options.providers,
-      rules: options.rules,
+      rules: ([] as Rule[]).concat(options.rules ?? [], new Rule(options.description)),
     });
 
     super(options.name, {

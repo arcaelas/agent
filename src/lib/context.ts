@@ -1,7 +1,7 @@
-import Message, { MessageOptions } from "./message";
-import Metadata from "./metadata";
-import Rule from "./rule";
-import Tool from "./tool";
+import Message, { MessageOptions } from "~/lib/message";
+import Metadata from "~/lib/metadata";
+import Rule from "~/lib/rule";
+import Tool from "~/lib/tool";
 
 /**
  * Container that mixes metadata, rules, tools, messages and parent contexts.

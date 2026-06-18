@@ -11,7 +11,7 @@
  * @since 1.0.0
  */
 
-import OpenAI, { type OpenAIProviderOptions } from "./openai";
+import OpenAI, { type OpenAIProviderOptions } from "~/provider/openai";
 
 /**
  * Configuration options for the DeepSeek provider.
