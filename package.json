@@ -14,13 +14,13 @@
   },
   "description": "A small box of tools, which are implemented in different factions of the library.",
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
+    "@eslint/js": "^10",
     "@types/node": "^25.3.5",
-    "eslint": "^9.0.0",
+    "eslint": "^10",
     "prettier": "^3.0.0",
     "tsc-alias": "^1.8.16",
-    "typescript": "^5.0.4",
-    "typescript-eslint": "^8.0.0"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0"
   },
   "exports": {
     ".": {
@@ -54,11 +54,11 @@
     "url": "https://github.com/arcaelas/agent.git"
   },
   "scripts": {
-    "build": "rm -rf build && tsc --module commonjs --moduleResolution node --outDir build/cjs && tsc-alias --outDir build/cjs && echo '{\"type\":\"commonjs\"}' > build/cjs/package.json && tsc --module ESNext --moduleResolution bundler --outDir build/esm && tsc-alias --resolve-full-paths --outDir build/esm && echo '{\"type\":\"module\"}' > build/esm/package.json",
+    "build": "rm -rf build && tsc --module commonjs --moduleResolution bundler --outDir build/cjs && tsc-alias --outDir build/cjs && echo '{\"type\":\"commonjs\"}' > build/cjs/package.json && tsc --module ESNext --moduleResolution bundler --outDir build/esm && tsc-alias --resolve-full-paths --outDir build/esm && echo '{\"type\":\"module\"}' > build/esm/package.json",
     "docs": "mkdocs gh-deploy --force",
     "release": "npm publish --access public",
     "prepublishOnly": "yarn build"
   },
   "types": "./build/esm/index.d.ts",
-  "version": "2.3.0"
+  "version": "2.3.1"
 }

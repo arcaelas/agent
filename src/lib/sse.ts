@@ -31,12 +31,11 @@ export async function* parse_sse(response: Response): AsyncGenerator<any, void, 
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
 
   const first_read = await reader.read();
   if (first_read.done) return;
 
-  buffer = decoder.decode(first_read.value, { stream: true });
+  let buffer = decoder.decode(first_read.value, { stream: true });
 
   const trimmed_start = buffer.trimStart();
   if (trimmed_start.startsWith("{")) {

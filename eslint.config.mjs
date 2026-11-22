@@ -13,6 +13,8 @@ export default [
       "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_", "ignoreRestSiblings": true }],
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unnecessary-type-constraint": "warn",
+      "@typescript-eslint/no-unsafe-declaration-merging": "off",
+      "@typescript-eslint/no-empty-object-type": ["error", { "allowInterfaces": "with-single-extends" }],
     },
   },
   {
